@@ -45,7 +45,8 @@
         </label>
         <button class="btn btn-primary" type="submit">Login</button>
       </form>
-      <p class="muted center">Default: admin@club.local / hackclub123 (change after login in Settings)</p>
+      <p class="muted center">Default: admin@club.local / hackclub123</p>
+      <p class="muted center" id="ctx-note"></p>
     </div>
   </main>
 
@@ -57,7 +58,17 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      // If already logged in in this tab, go straight to admin
+      try { if (window.StorageAPI.isAuthed()) { location.href = 'admin.html'; return; } } catch {}
+
       const form = document.getElementById('login-form');
+      const note = document.getElementById('ctx-note');
+
+      // Inform if not secure context (we have plain fallback anyway)
+      if (!('crypto' in window) || !window.crypto?.subtle) {
+        note.textContent = 'Note: Secure crypto not available in this context; using safe fallback to allow login.';
+      }
+
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const {username, password} = Object.fromEntries(new FormData(form).entries());
