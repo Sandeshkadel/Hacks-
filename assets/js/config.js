@@ -1,23 +1,10 @@
-// Global App Config: toggle real integrations or leave in mock mode.
+// Public config (optional). Fill in to enable real emails via EmailJS.
 window.AppConfig = {
   email: {
-    // Set to true and configure provider to use EmailJS; otherwise uses mock outbox.
-    enabled: false,
-    provider: 'emailjs',
-    adminEmail: 'admin@club.local',
-    // EmailJS config (optional)
     emailjs: {
-      service_id: 'your_service_id',
-      template_id: 'your_template_id',
-      public_key: 'your_public_key'
+      serviceId: "",      // e.g., "service_abc123"
+      templateId: "",     // e.g., "template_xyz789"
+      publicKey: ""       // e.g., "KLMNO_PQR"
     }
-  },
-  payment: {
-    donationLink: 'https://donate.stripe.com/test_12345'
-  },
-  zoom: {
-    enabled: false,
-    // You must implement these endpoints on your server if enabling
-    apiBase: 'https://your-server.example.com/api/zoom'
   }
 };
