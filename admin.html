@@ -35,8 +35,8 @@
       <button data-tab="sponsors">Sponsors</button>
       <button data-tab="donors">Donors</button>
       <button data-tab="courses">Courses</button>
-      <button data-tab="information">Information</button>
       <button data-tab="resources">Resources</button>
+      <button data-tab="information">Information</button>
       <button data-tab="meetings">Meetings</button>
       <button data-tab="messages">Messages</button>
       <button data-tab="emails">Emails</button>
@@ -71,6 +71,7 @@
           <input name="name" placeholder="Name" required />
           <input name="role" placeholder="Role" />
           <input name="image" placeholder="Image URL" />
+          <input name="socials" placeholder="Social links (comma-separated URLs)" />
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
@@ -83,10 +84,12 @@
         <form id="form-project" class="form row">
           <input name="id" type="hidden" />
           <input name="name" placeholder="Project name" required />
-          <input name="creators" placeholder="Creators" />
+          <input name="creators" placeholder="Maker name(s)" />
+          <input name="makerSocials" placeholder="Maker socials (comma-separated URLs)" />
+          <input name="image" placeholder="Cover image URL" />
           <input name="demo" placeholder="Demo URL" />
           <input name="code" placeholder="Code URL" />
-          <input name="description" placeholder="Description" />
+          <input name="description" placeholder="Short info/description" />
           <select name="award">
             <option value="">Award (none)</option>
             <option value="week">Best of Week</option>
@@ -105,8 +108,13 @@
         <form id="form-hackathon" class="form row">
           <input name="id" type="hidden" />
           <input name="title" placeholder="Title" required />
-          <input name="date" placeholder="Date" />
+          <input name="date" placeholder="Date (e.g., 2025-10-01 17:00)" />
+          <input name="website" placeholder="Website/Link (optional)" />
+          <input name="cover" placeholder="Cover image URL (optional)" />
           <input name="description" placeholder="Description" />
+          <input name="prizes" placeholder="Prizes (comma-separated)" />
+          <input name="participants" placeholder="Participants (comma-separated)" />
+          <input name="winners" placeholder="Winners (comma-separated)" />
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
@@ -122,8 +130,11 @@
             <option value="image">Image</option>
             <option value="video">Video</option>
           </select>
-          <input name="src" placeholder="URL" required />
-          <input name="description" placeholder="Description" />
+          <input name="src" placeholder="Media URL (image/video)" required />
+          <input name="link" placeholder="Related link (optional)" />
+          <input name="event" placeholder="Event name (optional)" />
+          <input name="date" placeholder="Date (optional)" />
+          <input name="description" placeholder="Info/Description (optional)" />
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
@@ -173,10 +184,26 @@
           </select>
           <input name="url" placeholder="Video URL (optional)" />
           <textarea name="embed" placeholder="Embed HTML (optional)"></textarea>
+          <input name="thumb" placeholder="Thumbnail URL (optional)" />
+          <input name="description" placeholder="Short description (optional)" />
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
         <div id="courses-list" class="cards three sortable"></div>
+      </div>
+
+      <!-- Resources -->
+      <div class="tab hidden" id="tab-resources">
+        <h2>Resources</h2>
+        <form id="form-resource" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <input name="url" placeholder="Link" required />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="resources-list" class="cards three"></div>
       </div>
 
       <!-- Information -->
@@ -204,20 +231,6 @@
             <article id="info-preview" class="card soft"></article>
           </div>
         </div>
-      </div>
-
-      <!-- Resources -->
-      <div class="tab hidden" id="tab-resources">
-        <h2>Resources</h2>
-        <form id="form-resource" class="form row">
-          <input name="id" type="hidden" />
-          <input name="title" placeholder="Title" required />
-          <input name="url" placeholder="Link" required />
-          <input name="description" placeholder="Description" />
-          <button class="btn btn-primary" type="submit">Save</button>
-          <button class="btn" type="button" data-reset>Reset</button>
-        </form>
-        <div id="resources-list" class="cards three"></div>
       </div>
 
       <!-- Meetings -->
