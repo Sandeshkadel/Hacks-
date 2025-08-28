@@ -36,6 +36,15 @@
   <main class="section-pad">
     <div class="container">
       <h1 class="section-title">Projects</h1>
+      <div class="row" style="margin-bottom:14px">
+        <input id="project-search" placeholder="Search projects by name, creator, or description" class="chip" style="flex:1; min-height:40px; padding:10px 12px" />
+        <select id="award-filter" class="chip">
+          <option value="all">All</option>
+          <option value="week">Best of Week</option>
+          <option value="month">Best of Month</option>
+          <option value="year">Best of Year</option>
+        </select>
+      </div>
       <div id="project-grid" class="cards three"></div>
     </div>
   </main>
@@ -47,12 +56,20 @@
   </footer>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    function renderProjects() {
       const grid = document.getElementById('project-grid');
-      const items = window.StorageAPI.getData().projects;
+      const q = (document.getElementById('project-search').value || '').toLowerCase();
+      const award = document.getElementById('award-filter').value;
+      let items = window.StorageAPI.getData().projects;
+      if (award !== 'all') items = items.filter(p => (p.award||'') === award);
+      if (q) items = items.filter(p =>
+        (p.name||'').toLowerCase().includes(q) ||
+        (p.creators||'').toLowerCase().includes(q) ||
+        (p.description||'').toLowerCase().includes(q)
+      );
       grid.innerHTML = items.map(p => `
         <article class="card project hover-lift">
-          <h3>${window.UI.escape(p.name)}</h3>
+          <h3>${window.UI.escape(p.name)} ${p.award ? `<span class="badge ${p.award}">${p.award.toUpperCase()}</span>`:''}</h3>
           <p class="muted">By: ${window.UI.escape(p.creators || '')}</p>
           <p>${window.UI.escape(p.description || '')}</p>
           <div class="project-links">
@@ -60,7 +77,12 @@
             ${p.code ? `<a class="chip" href="${window.UI.escape(p.code)}" target="_blank">Code</a>` : ''}
           </div>
         </article>
-      `).join('');
+      `).join('') || '<p class="muted">No projects found.</p>';
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('project-search').addEventListener('input', renderProjects);
+      document.getElementById('award-filter').addEventListener('change', renderProjects);
+      renderProjects();
     });
   </script>
 </body>
