@@ -1,13 +1,45 @@
-// Full Admin Panel logic with forms and per-section add/edit/delete, CSV parsing, socials parsing, and member email notifications
+// Full Admin Panel logic with working tabs, logout, rendering, and CRUD
 document.addEventListener('DOMContentLoaded', () => {
   // Auth guard
-  if (!window.StorageAPI?.isAuthed()){
+  if (!window.StorageAPI || !window.StorageAPI.isAuthed()) {
     try { window.UI?.toast?.('Please login', 'error'); } catch {}
-    location.href = 'admin-login.html'; return;
+    location.href = 'admin-login.html';
+    return;
   }
 
-  const UI = window.UI;
   const S = window.StorageAPI;
+  const UI = window.UI;
+
+  // Sidebar tabs
+  const buttons = document.querySelectorAll('.admin-sidebar button');
+  const tabs = document.querySelectorAll('.tab');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const id = 'tab-' + btn.dataset.tab;
+      tabs.forEach(t => t.classList.toggle('hidden', t.id !== id));
+    });
+  });
+
+  // Logout
+  document.getElementById('logout')?.addEventListener('click', () => {
+    S.logout();
+    location.href = 'admin-login.html';
+  });
+
+  // Stats
+  function refreshStats() {
+    const st = S.stats();
+    const d = S.getData();
+    const m = document.getElementById('stat-members');
+    const p = document.getElementById('stat-projects');
+    const h = document.getElementById('stat-hackathons');
+    if (m) m.textContent = String(st.participants);
+    if (p) p.textContent = String(st.projects);
+    if (h) h.textContent = String((d.hackathons || []).length);
+  }
+  refreshStats();
 
   // Helpers
   const esc = (s) => UI.escape(s);
@@ -25,38 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const parseSocials = (str='') => parseCSV(str).map(url => ({ name: nameFromUrl(url), url }));
   const stringifySocials = (arr=[]) => (arr||[]).map(s=>s.url).join(', ');
 
-  // Tabs
-  const buttons = document.querySelectorAll('.admin-sidebar button');
-  const tabs = document.querySelectorAll('.tab');
-  buttons.forEach(btn => btn.addEventListener('click', ()=>{
-    buttons.forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const id = 'tab-' + btn.dataset.tab;
-    tabs.forEach(t=> t.classList.toggle('hidden', t.id !== id));
-  }));
-
-  // Logout
-  document.getElementById('logout')?.addEventListener('click', ()=>{
-    S.logout();
-    location.href = 'admin-login.html';
-  });
-
-  // Stats
-  function refreshStats(){
-    const st = S.stats();
-    const d = S.getData();
-    document.getElementById('stat-members').textContent = String(st.participants);
-    document.getElementById('stat-projects').textContent = String(st.projects);
-    document.getElementById('stat-hackathons').textContent = String((d.hackathons||[]).length);
-  }
-  refreshStats();
-
-  // Members
+  // Members (approve/decline/edit/delete)
   const membersTable = document.getElementById('members-table');
-  function renderMembers(){
+  function renderMembers() {
     const data = S.getData().members || [];
     membersTable.innerHTML = `
-      <div class="row header"><div>Name</div><div>Email</div><div>Contact</div><div>Location</div><div>Status</div><div class="actions">Actions</div></div>
+      <div class="row header">
+        <div>Name</div><div>Email</div><div>Contact</div><div>Location</div><div>Status</div><div class="actions">Actions</div>
+      </div>
       ${data.map(m => `
         <div class="row">
           <div>${esc(m.name||'')}</div>
@@ -74,98 +82,109 @@ document.addEventListener('DOMContentLoaded', () => {
       `).join('')}
     `;
   }
-  membersTable.addEventListener('click', async (e)=>{
+  membersTable.addEventListener('click', async (e) => {
     const approve = e.target.closest?.('[data-approve]')?.dataset.approve;
     const decline = e.target.closest?.('[data-decline]')?.dataset.decline;
     const del = e.target.closest?.('[data-delete]')?.dataset.delete;
     const edit = e.target.closest?.('[data-edit]')?.dataset.edit;
-    if (approve){
-      S.updateMember(approve, { status:'approved' });
+
+    if (approve) {
+      S.updateMember(approve, { status: 'approved' });
       try {
-        const m = S.getData().members.find(x=>x.id===approve);
-        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Approved', message:`Hi ${m.name}, you are approved!` });
+        const m = S.getData().members.find(x => x.id === approve);
+        await window.EmailAPI?.send?.({ to: m.email, subject: 'Hack Club: Approved', message: `Hi ${m.name}, you are approved!` });
       } catch {}
       UI.toast('Approved', 'success');
-    } else if (decline){
-      S.updateMember(decline, { status:'declined' });
+    } else if (decline) {
+      S.updateMember(decline, { status: 'declined' });
       try {
-        const m = S.getData().members.find(x=>x.id===decline);
-        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Declined', message:`Hi ${m.name}, you are rejected, please start again.` });
+        const m = S.getData().members.find(x => x.id === decline);
+        await window.EmailAPI?.send?.({ to: m.email, subject: 'Hack Club: Declined', message: `Hi ${m.name}, you are rejected, please start again.` });
       } catch {}
       UI.toast('Declined', 'success');
-    } else if (del){
+    } else if (del) {
       S.deleteMember(del);
       UI.toast('Deleted', 'success');
-    } else if (edit){
-      const m = S.getData().members.find(x=>x.id===edit);
-      const name = prompt('Name', m?.name ?? ''); if (name==null) return;
-      const email = prompt('Email', m?.email ?? ''); if (email==null) return;
-      const contact = prompt('Contact', m?.contact ?? ''); if (contact==null) return;
-      const location = prompt('Location', m?.location ?? ''); if (location==null) return;
+    } else if (edit) {
+      const m = S.getData().members.find(x => x.id === edit);
+      if (!m) return;
+      const name = prompt('Name', m.name ?? ''); if (name == null) return;
+      const email = prompt('Email', m.email ?? ''); if (email == null) return;
+      const contact = prompt('Contact', m.contact ?? ''); if (contact == null) return;
+      const location = prompt('Location', m.location ?? ''); if (location == null) return;
       S.updateMember(edit, { name, email, contact, location });
       UI.toast('Updated', 'success');
     }
-    renderMembers(); refreshStats();
+    renderMembers();
+    refreshStats();
   });
   renderMembers();
 
-  // Export CSV
-  document.getElementById('export-members')?.addEventListener('click', ()=>{
+  // Export members CSV
+  document.getElementById('export-members')?.addEventListener('click', () => {
     const rows = S.getData().members || [];
     const header = ['id','name','email','contact','location','caste','status','message'];
-    const csv = [header.join(',')].concat(rows.map(r => header.map(h => {
-      const v = (r[h] ?? '').toString().replace(/\r?\n/g, ' ').replace(/"/g, '""');
-      return `"${v}"`;
-    }).join(','))).join('\n');
-    const blob = new Blob([csv], { type:'text/csv' });
+    const csv = [header.join(',')].concat(rows.map(r =>
+      header.map(h => `"${String(r[h] ?? '').replace(/\r?\n/g, ' ').replace(/"/g, '""')}"`).join(',')
+    )).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'members.csv'; a.click();
     URL.revokeObjectURL(url);
   });
 
-  // Generic CRUD binder with transform hooks
-  function bindCrud(listName, formId, listId, renderCard, { toForm, fromForm, sortable } = {}){
+  // Generic CRUD binder
+  function bindCrud(listName, formId, listId, renderCard, { toForm, fromForm, sortable } = {}) {
     const form = document.getElementById(formId);
     const list = document.getElementById(listId);
-    function render(){
+
+    function render() {
       const items = S.getData()[listName] || [];
       list.innerHTML = items.map(x => renderCard(x)).join('');
-      if (sortable) UI.sortable(list, (ids)=> S.reorder(listName, ids));
+      if (sortable) UI.sortable(list, (ids) => S.reorder(listName, ids));
     }
-    list.addEventListener('click', (e)=>{
+
+    list.addEventListener('click', (e) => {
       const editId = e.target.closest?.('[data-edit]')?.dataset.edit;
       const delId = e.target.closest?.('[data-del]')?.dataset.del;
-      if (editId){
-        const item = (S.getData()[listName]||[]).find(i=>i.id===editId);
+      if (editId) {
+        const item = (S.getData()[listName] || []).find(i => i.id === editId);
         if (!item) return;
         if (toForm) toForm(item, form);
         else [...form.elements].forEach(el => { if (el.name && item[el.name] != null) el.value = item[el.name]; });
-        form.scrollIntoView({ behavior:'smooth' });
-      } else if (delId){
+        form.scrollIntoView({ behavior: 'smooth' });
+      } else if (delId) {
         S.remove(listName, delId);
-        UI.toast('Deleted', 'success'); render(); refreshStats();
+        UI.toast('Deleted', 'success');
+        render();
+        refreshStats();
       }
     });
-    form.addEventListener('submit', (e)=>{
+
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       let data = Object.fromEntries(new FormData(form).entries());
       if (fromForm) data = fromForm(data);
-      Object.keys(data).forEach(k => { if (data[k]==='') delete data[k]; });
+      Object.keys(data).forEach(k => { if (data[k] === '') delete data[k]; });
       if (!data.id) delete data.id;
       S.upsert(listName, data);
       UI.toast('Saved', 'success');
-      form.reset(); render(); refreshStats();
+      form.reset();
+      render();
+      refreshStats();
     });
-    form.querySelector('[data-reset]')?.addEventListener('click', ()=> form.reset());
+
+    form.querySelector('[data-reset]')?.addEventListener('click', () => form.reset());
+
     render();
     return { render, form, list };
   }
 
   // Organizers
-  bindCrud('organizers', 'form-organizer', 'organizers-list', (o)=> `
+  bindCrud('organizers', 'form-organizer', 'organizers-list', (o) => `
     <article class="card hover-lift" data-id="${o.id}">
-      <img src="${esc(o.image||'https://placehold.co/320x200?text=?')}" alt="${esc(o.name||'')}" style="width:100%; border-radius:10px"/>
+      <img src="${esc(o.image||'https://placehold.co/320x200?text=?')}" alt="${esc(o.name||'')}" class="thumb"/>
       <h3>${esc(o.name||'')}</h3>
       <p class="muted">${esc(o.role||'')}</p>
       <div class="row">
@@ -174,47 +193,46 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </article>
   `, {
-    toForm: (item, f)=>{
+    toForm: (item, f) => {
       f.id.value = item.id || '';
       f.name.value = item.name || '';
       f.role.value = item.role || '';
       f.image.value = item.image || '';
       f.socials.value = stringifySocials(item.socials || []);
     },
-    fromForm: (vals)=> {
-      return {
-        id: vals.id || undefined,
-        name: vals.name, role: vals.role || '', image: vals.image || '',
-        socials: parseSocials(vals.socials || '')
-      };
-    }
+    fromForm: (v) => ({
+      id: v.id || undefined,
+      name: v.name, role: v.role || '', image: v.image || '', socials: parseSocials(v.socials || '')
+    })
   });
 
   // Projects
-  bindCrud('projects', 'form-project', 'projects-list', (p)=> `
+  bindCrud('projects', 'form-project', 'projects-list', (p) => `
     <article class="card hover-lift" draggable="true" data-id="${p.id}">
-      <img src="${esc(p.image||'https://placehold.co/640x360?text=Project')}" alt="${esc(p.name||'')}" class="thumb" />
+      <img src="${esc(p.image||'https://placehold.co/640x360?text=Project')}" alt="${esc(p.name||'')}" class="thumb"/>
       <h3>${esc(p.name||'')} ${p.award ? `<span class="badge ${esc(p.award)}">${esc((p.award||'').toUpperCase())}</span>`:''}</h3>
       <p class="muted">${esc(p.creators||'')}</p>
       <div class="row">
+        ${p.demo ? `<a class="chip" href="${esc(p.demo)}" target="_blank">Demo</a>`:''}
+        ${p.code ? `<a class="chip" href="${esc(p.code)}" target="_blank">Code</a>`:''}
         <button class="chip" data-edit="${p.id}">Edit</button>
         <button class="chip danger" data-del="${p.id}">Delete</button>
       </div>
     </article>
   `, {
     sortable: true,
-    toForm: (item, f)=>{
-      f.id.value = item.id || '';
-      f.name.value = item.name || '';
-      f.creators.value = item.creators || '';
-      f.makerSocials.value = stringifySocials(item.makerSocials || []);
-      f.image.value = item.image || '';
-      f.demo.value = item.demo || '';
-      f.code.value = item.code || '';
-      f.description.value = item.description || '';
-      f.award.value = item.award || '';
+    toForm: (i, f) => {
+      f.id.value = i.id || '';
+      f.name.value = i.name || '';
+      f.creators.value = i.creators || '';
+      f.makerSocials.value = stringifySocials(i.makerSocials || []);
+      f.image.value = i.image || '';
+      f.demo.value = i.demo || '';
+      f.code.value = i.code || '';
+      f.description.value = i.description || '';
+      f.award.value = i.award || '';
     },
-    fromForm: (v)=> ({
+    fromForm: (v) => ({
       id: v.id || undefined,
       name: v.name, creators: v.creators || '', makerSocials: parseSocials(v.makerSocials || ''),
       image: v.image || '', demo: v.demo || '', code: v.code || '', description: v.description || '', award: v.award || ''
@@ -222,20 +240,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Hackathons
-  bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h)=> `
+  bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h) => `
     <article class="card hover-lift" data-id="${h.id}">
-      ${h.cover ? `<img src="${esc(h.cover)}" alt="${esc(h.title||'')}" class="thumb" />`:''}
+      ${h.cover ? `<img src="${esc(h.cover)}" alt="${esc(h.title||'')}" class="thumb"/>`:''}
       <h3>${esc(h.title||'')}</h3>
       <p class="muted">${esc(h.date||'')}</p>
       <p>${esc(h.description||'')}</p>
       <div class="row">
-        ${h.website ? `<a class="chip" target="_blank" href="${esc(h.website)}">Website</a>`:''}
+        ${h.website ? `<a class="chip" href="${esc(h.website)}" target="_blank">Website</a>`:''}
         <button class="chip" data-edit="${h.id}">Edit</button>
         <button class="chip danger" data-del="${h.id}">Delete</button>
       </div>
     </article>
   `, {
-    toForm: (i, f)=>{
+    toForm: (i, f) => {
       f.id.value = i.id || '';
       f.title.value = i.title || '';
       f.date.value = i.date || '';
@@ -246,19 +264,19 @@ document.addEventListener('DOMContentLoaded', () => {
       f.participants.value = (i.participants||[]).join(', ');
       f.winners.value = (i.winners||[]).join(', ');
     },
-    fromForm: (v)=> ({
+    fromForm: (v) => ({
       id: v.id || undefined,
-      title: v.title, date: v.date || '', website: v.website || '', cover: v.cover || '', description: v.description || '',
-      prizes: parseCSV(v.prizes || ''), participants: parseCSV(v.participants || ''), winners: parseCSV(v.winners || '')
+      title: v.title, date: v.date || '', website: v.website || '', cover: v.cover || '',
+      description: v.description || '', prizes: parseCSV(v.prizes||''), participants: parseCSV(v.participants||''), winners: parseCSV(v.winners||'')
     })
   });
 
   // Gallery
-  bindCrud('gallery', 'form-gallery', 'gallery-list', (g)=> `
+  bindCrud('gallery', 'form-gallery', 'gallery-list', (g) => `
     <article class="card hover-lift" data-id="${g.id}">
       ${g.type==='video'
         ? `<div class="video-wrap"><video src="${esc(g.src||'')}" controls></video></div>`
-        : `<img src="${esc(g.src||'')}" alt="${esc(g.description||'')}" />`}
+        : `<img src="${esc(g.src||'')}" alt="${esc(g.description||'')}" class="thumb"/>`}
       <p><strong>${esc(g.event||'')}</strong> ${g.date ? `• <span class="muted">${esc(g.date)}</span>`:''}</p>
       <p>${esc(g.description||'')}</p>
       <div class="row">
@@ -268,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </article>
   `, {
-    toForm: (i, f)=>{
+    toForm: (i, f) => {
       f.id.value = i.id || '';
       f.type.value = i.type || 'image';
       f.src.value = i.src || '';
@@ -277,16 +295,16 @@ document.addEventListener('DOMContentLoaded', () => {
       f.date.value = i.date || '';
       f.description.value = i.description || '';
     },
-    fromForm: (v)=> ({
+    fromForm: (v) => ({
       id: v.id || undefined,
       type: v.type || 'image', src: v.src, link: v.link || '', event: v.event || '', date: v.date || '', description: v.description || ''
     })
   });
 
   // Sponsors
-  bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s)=> `
+  bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s) => `
     <article class="card hover-lift" data-id="${s.id}">
-      <img class="sponsor-logo" src="${esc(s.image||'')}" alt="${esc(s.name||'')}" />
+      ${s.image ? `<img class="sponsor-logo" src="${esc(s.image)}" alt="${esc(s.name||'')}" />`:''}
       <h3>${esc(s.name||'')}</h3>
       <p>${esc(s.description||'')}</p>
       <div class="row">
@@ -298,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
   `);
 
   // Donors
-  bindCrud('donors', 'form-donor', 'donors-list', (d)=> `
+  bindCrud('donors', 'form-donor', 'donors-list', (d) => `
     <article class="card hover-lift" data-id="${d.id}">
       <h3>${esc(d.name||'')}</h3>
       <p class="muted">${esc(d.amount||'')}</p>
@@ -312,9 +330,9 @@ document.addEventListener('DOMContentLoaded', () => {
   `);
 
   // Courses
-  bindCrud('courses', 'form-course', 'courses-list', (c)=> `
+  bindCrud('courses', 'form-course', 'courses-list', (c) => `
     <article class="card hover-lift" draggable="true" data-id="${c.id}">
-      ${c.thumb ? `<img src="${esc(c.thumb)}" alt="${esc(c.title||'')}" class="thumb" />`:''}
+      ${c.thumb ? `<img src="${esc(c.thumb)}" alt="${esc(c.title||'')}" class="thumb"/>`:''}
       <h3>${esc(c.title||'')}</h3>
       <p class="muted">${esc(c.level||'')}</p>
       <div class="row">
@@ -323,12 +341,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${c.id}">Delete</button>
       </div>
     </article>
-  `, {
-    sortable: true
-  });
+  `, { sortable: true });
 
   // Resources
-  bindCrud('resources', 'form-resource', 'resources-list', (r)=> `
+  bindCrud('resources', 'form-resource', 'resources-list', (r) => `
     <article class="card hover-lift" data-id="${r.id}">
       <h3>${esc(r.title||'')}</h3>
       <p>${esc(r.description||'')}</p>
@@ -341,32 +357,36 @@ document.addEventListener('DOMContentLoaded', () => {
   `);
 
   // Information
-  function renderInfo(){
+  function renderInfo() {
     const info = S.getData().information || {};
     const wrap = document.getElementById('info-sections');
-    wrap.innerHTML = Object.entries(info).map(([key, html]) => `
-      <article class="card soft">
-        <h4>${esc(key.replaceAll('_',' '))}</h4>
-        <div class="muted" style="max-height:140px; overflow:auto">${html}</div>
-      </article>
-    `).join('');
-    document.getElementById('info-preview').innerHTML = Object.values(info).join('<hr/>');
+    const prev = document.getElementById('info-preview');
+    if (wrap) {
+      wrap.innerHTML = Object.entries(info).map(([key, html]) => `
+        <article class="card soft">
+          <h4>${esc(key.replaceAll('_',' '))}</h4>
+          <div class="muted" style="max-height:140px; overflow:auto">${html}</div>
+        </article>
+      `).join('');
+    }
+    if (prev) prev.innerHTML = Object.values(info).join('<hr/>');
   }
   renderInfo();
   const infoForm = document.getElementById('form-info');
-  infoForm.addEventListener('submit', (e)=>{
+  infoForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const vals = Object.fromEntries(new FormData(infoForm).entries());
     S.setInformationSection(vals.section, vals.html || '');
     UI.toast('Information saved', 'success');
-    infoForm.reset(); renderInfo();
+    infoForm.reset();
+    renderInfo();
   });
-  infoForm.querySelector('[data-reset]')?.addEventListener('click', ()=> infoForm.reset());
+  infoForm.querySelector('[data-reset]')?.addEventListener('click', () => infoForm.reset());
 
   // Meetings
   const meetingForm = document.getElementById('form-meeting');
   const meetingList = document.getElementById('meetings-list');
-  function renderMeetings(){
+  function renderMeetings() {
     const items = S.getData().meetings || [];
     meetingList.innerHTML = items.map(m => `
       <article class="card hover-lift" data-id="${m.id}">
@@ -382,11 +402,11 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
   renderMeetings();
-  meetingForm.addEventListener('submit', async (e)=>{
+  meetingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(meetingForm).entries());
     if (!data.id) delete data.id;
-    if (!data.zoomLink){
+    if (!data.zoomLink) {
       try {
         const created = await window.ZoomAPI?.createMeeting?.({ topic: data.title, start_time: data.date });
         if (created?.join_url) data.zoomLink = created.join_url;
@@ -394,16 +414,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     S.upsert('meetings', data);
     UI.toast('Saved meeting', 'success');
-    meetingForm.reset(); renderMeetings();
+    meetingForm.reset();
+    renderMeetings();
   });
-  meetingList.addEventListener('click', (e)=>{
+  meetingList.addEventListener('click', (e) => {
     const editId = e.target.closest?.('[data-edit]')?.dataset.edit;
     const delId = e.target.closest?.('[data-del]')?.dataset.del;
-    if (editId){
-      const m = (S.getData().meetings||[]).find(x=>x.id===editId);
+    if (editId) {
+      const m = (S.getData().meetings||[]).find(x => x.id === editId);
+      if (!m) return;
       [...meetingForm.elements].forEach(el => { if (el.name && m[el.name] != null) el.value = m[el.name]; });
-      meetingForm.scrollIntoView({ behavior:'smooth' });
-    } else if (delId){
+      meetingForm.scrollIntoView({ behavior: 'smooth' });
+    } else if (delId) {
       S.remove('meetings', delId);
       UI.toast('Deleted meeting', 'success');
       renderMeetings();
@@ -411,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Emails outbox
-  function renderEmails(){
+  function renderEmails() {
     const list = S.emailOutbox() || [];
     const wrap = document.getElementById('emails-list');
     wrap.innerHTML = `
@@ -429,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderEmails();
 
   // Messages
-  function renderMessages(){
+  function renderMessages() {
     const list = (S.getData().messages || []);
     const wrap = document.getElementById('messages-table');
     wrap.innerHTML = `
@@ -452,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
   settingsForm.adminEmail.value = s.adminEmail || '';
   settingsForm.username.value = s.adminUser || '';
   settingsForm.donationLink.value = s.donationLink || '';
-  settingsForm.addEventListener('submit', async (e)=>{
+  settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const vals = Object.fromEntries(new FormData(settingsForm).entries());
     const upd = { adminEmail: vals.adminEmail, adminUser: vals.username, donationLink: vals.donationLink };
