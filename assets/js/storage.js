@@ -1,6 +1,6 @@
-// LocalStorage-backed data and simple auth
+// LocalStorage-backed data and simple auth with extended entities
 (function(){
-  const KEY = 'clubData.v1';
+  const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
   const DEFAULT = {
     settings: {
@@ -16,17 +16,27 @@
       contact: 'admin@club.local'
     },
     clubInfo: [
-      { title:'Mission', text:'Empower students to build and ship projects.' },
-      { title:'Goals', text:'Workshops, open-source, hackathons, and community.' },
-      { title:'Achievements', text:'Shipped 25+ projects and hosted 3 hackathons.' }
+      { id: uid(), section:'goals', title:'Mission', text:'Empower students to build and ship projects.' },
+      { id: uid(), section:'achievements', title:'Achievements', text:'Shipped 25+ projects and hosted 3 hackathons.' }
+    ],
+    organizers: [
+      { id: uid(), name:'Jane Doe', role:'Lead Organizer', image:'https://placehold.co/160x160?text=JD' },
+      { id: uid(), name:'Sam Lee', role:'Coordinator', image:'https://placehold.co/160x160?text=SL' }
     ],
     sponsors: [
       { id: uid(), name:'Acme Corp', image:'https://placehold.co/240x120?text=Acme', link:'#', description:'Supporting student innovation.' },
       { id: uid(), name:'TechNova', image:'https://placehold.co/240x120?text=TechNova', link:'#', description:'Fueling creativity and learning.' }
     ],
+    donors: [
+      { id: uid(), name:'John Sponsor', amount:'$200', link:'#', description:'Community donor' }
+    ],
+    resources: [
+      { id: uid(), title:'Hack Club Handbook', url:'https://guide.hackclub.com', description:'Official guides and tips.' },
+      { id: uid(), title:'Workshops', url:'https://workshops.hackclub.com', description:'Learn by building.' }
+    ],
     projects: [
-      { id: uid(), name:'Club Site', creators:'Team', demo:'#', code:'#', description:'Our official site.' },
-      { id: uid(), name:'IoT Monitor', creators:'Alice, Bob', demo:'#', code:'#', description:'Sensor dashboard.' }
+      { id: uid(), name:'Club Site', creators:'Team', demo:'#', code:'#', description:'Our official site.', award:'month' },
+      { id: uid(), name:'IoT Monitor', creators:'Alice, Bob', demo:'#', code:'#', description:'Sensor dashboard.', award:'week' }
     ],
     hackathons: [
       { id: uid(), title:'Winter Hacks', date:'2025-01-15', description:'48-hour hackathon.', participants:['Alice','Bob'], prizes:['Swag','Cash'], winners:['Team Alpha'], images:['https://placehold.co/480x300?text=Hack'] }
@@ -39,18 +49,26 @@
       { id: uid(), title:'Intro to Web', level:'beginner', url:'https://youtube.com', embed:'' },
       { id: uid(), title:'React Deep Dive', level:'advanced', url:'https://youtube.com', embed:'' }
     ],
-    information: { html: '<p>Welcome to <strong>Hack Club</strong>. Edit this content in Admin &gt; Information.</p>' },
+    information: {
+      goals: '<p>Our goals: build, learn, share.</p>',
+      motto: '<p>Our motto: Ship it!</p>',
+      what_is_hackclub: '<p>Hack Club is a global student community of makers.</p>',
+      what_is_our_club: '<p>Our club is a local chapter that meets weekly.</p>',
+      sources: '<p>Useful sources listed in Resources.</p>'
+    },
     members: [
-      { id: uid(), name:'John Doe', caste:'General', contact:'1234567890', location:'City', email:'john@example.com', message:'Excited to join!', status:'approved' }
+      { id: uid(), name:'John Doe', caste:'General', contact:'+9779800000000', location:'City', email:'john@example.com', message:'Excited to join!', status:'approved' }
     ],
     meetings: [
       { id: uid(), title:'Weekly Sync', date:'2025-09-01 17:00', description:'Project updates', zoomLink:'' }
     ],
     meetingRecordings: [],
+    messages: [],
     emails: []
   };
 
   function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
+  function clone(v){ return JSON.parse(JSON.stringify(v)); }
   function getData(){
     try{
       const raw = localStorage.getItem(KEY);
@@ -58,7 +76,6 @@
     }catch{ return clone(DEFAULT); }
   }
   function setData(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
-  function clone(v){ return JSON.parse(JSON.stringify(v)); }
 
   async function sha256(text){
     const enc = new TextEncoder().encode(text);
@@ -71,10 +88,8 @@
   }
   function setSession(s){ sessionStorage.setItem(SESSION, JSON.stringify(s)); }
 
-  // Public API
   window.StorageAPI = {
     getData,
-    saveData(){ setData(getData()); },
     setData(newData){ setData(newData); },
     reset(){ localStorage.removeItem(KEY); },
     stats(){
@@ -82,7 +97,7 @@
       return {
         participants: d.members.filter(m=>m.status==='approved').length,
         projects: d.projects.length,
-        organizers:  d.members.filter(m=>m.status==='approved').slice(0,3).length || 3
+        organizers:  d.organizers.length
       };
     },
     addMember(member){
@@ -129,9 +144,9 @@
       d[listName] = orderedIds.map(id => map.get(id)).filter(Boolean);
       setData(d);
     },
-    setInformation(html){
+    setInformationSection(section, html){
       const d = getData();
-      d.information = { html };
+      d.information[section] = html;
       setData(d);
     },
     addRecording(url){
@@ -139,17 +154,18 @@
       d.meetingRecordings.push(url);
       setData(d);
     },
-    emailOutbox(){
-      return getData().emails;
+    addMessage(msg){
+      const d = getData();
+      d.messages.unshift({ id: uid(), date: new Date().toISOString(), ...msg });
+      setData(d);
     },
+    emailOutbox(){ return getData().emails; },
     pushEmail(email){
       const d = getData();
       d.emails.unshift({ id: uid(), date: new Date().toISOString(), ...email });
       setData(d);
     },
-    settings(){
-      const d = getData(); return d.settings;
-    },
+    settings(){ return getData().settings; },
     saveSettings(upd){
       const d = getData();
       d.settings = { ...d.settings, ...upd };
