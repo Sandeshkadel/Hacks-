@@ -1,4 +1,4 @@
-// LocalStorage data + auth + email outbox + CRUD helpers with expanded schemas
+// LocalStorage data + auth + email outbox + CRUD helpers
 (function(){
   const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
@@ -14,19 +14,37 @@
       socials: [],
       contact: 'admin@club.local'
     },
-    organizers: [],
-    sponsors: [],
+    organizers: [
+      { id: uid(), name:'Jane Doe', role:'Lead Organizer', image:'https://placehold.co/320x200?text=Jane', socials:[{name:'GitHub', url:'https://github.com/janedoe'}] }
+    ],
+    sponsors: [
+      { id: uid(), name:'Acme Corp', image:'https://placehold.co/240x120?text=Acme', link:'#', description:'Supporting student innovation.' }
+    ],
     donors: [],
-    resources: [],
-    projects: [],
-    hackathons: [],
-    gallery: [],
-    courses: [],
+    resources: [
+      { id: uid(), title:'Hack Club Handbook', url:'https://guide.hackclub.com', description:'Official guides and tips.' }
+    ],
+    projects: [
+      { id: uid(), name:'Club Site', creators:'Team', makerSocials:[{name:'GitHub',url:'https://github.com/hackclub'}], image:'https://placehold.co/640x360?text=Project', demo:'#', code:'#', description:'Our official site.', award:'month' }
+    ],
+    hackathons: [
+      { id: uid(), title:'Winter Hacks', date:'2025-01-15', website:'#', cover:'https://placehold.co/640x360?text=Hack', description:'48-hour hackathon.', prizes:['Swag'], participants:['Alice','Bob'], winners:['Team Alpha'] }
+    ],
+    gallery: [
+      { id: uid(), type:'image', src:'https://placehold.co/600x400?text=Workshop', link:'#', event:'Workshop', date:'2025-07-01', description:'Great session' }
+    ],
+    courses: [
+      { id: uid(), title:'Intro to Web', level:'beginner', url:'https://youtube.com', embed:'', thumb:'', description:'Basics' }
+    ],
     information: {
       goals: '<p>Our goals: build, learn, share.</p>'
     },
-    members: [],
-    meetings: [],
+    members: [
+      { id: uid(), name:'John Doe', caste:'General', contact:'+9779800000000', location:'City', email:'john@example.com', message:'Excited to join!', status:'pending' }
+    ],
+    meetings: [
+      { id: uid(), title:'Weekly Sync', date:'2025-09-01 17:00', description:'Project updates', zoomLink:'' }
+    ],
     meetingRecordings: [],
     messages: [],
     emails: []
