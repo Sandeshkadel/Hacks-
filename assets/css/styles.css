@@ -126,11 +126,20 @@ img{max-width:100%; display:block}
 .splash-loader{display:flex; gap:6px}
 .splash-loader span{width:10px; height:10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius:50%; animation: bounce .9s infinite alternate}
 .splash-loader span:nth-child(2){animation-delay:.15s}
-.splash-loader span:nth-child(3){animation-delay:.3s}
+@supported (animation){.splash-loader span:nth-child(3){animation-delay:.3s}}
 @keyframes fadeIn{from{opacity:0; transform: scale(.98)} to{opacity:1; transform: scale(1)}}
 @keyframes bounce{to{transform: translateY(-10px)}}
 
 .thumb{width:100%; border-radius:10px}
+
+.organizers-grid{display:grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap:16px}
+.organizer{background: var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; text-align:center; box-shadow: var(--shadow)}
+.organizer img{width:100%; height:auto; border-radius:12px; margin-bottom:8px}
+
+.badge{display:inline-block; font-size:11px; margin-left:8px; padding:2px 8px; border-radius:999px; background: rgba(255,255,255,.08); border:1px solid var(--border)}
+.badge.week{background: linear-gradient(135deg,#00e5ff33,#7a5cff33)}
+.badge.month{background: linear-gradient(135deg,#22c55e33,#00e5ff33)}
+.badge.year{background: linear-gradient(135deg,#f59e0b33,#ef444433)}
 
 @media (max-width: 920px){
   .hero-grid{grid-template-columns: 1fr}
