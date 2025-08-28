@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+  <!-- Keep scripts in this order so data and UI helpers are ready for app rendering -->
   <script defer src="assets/js/storage.js"></script>
   <script defer src="assets/js/config.js"></script>
   <script defer src="assets/js/ui.js"></script>
@@ -14,18 +15,16 @@
   <script defer src="assets/js/app.js"></script>
 </head>
 <body class="theme-gradient">
-  <!-- Splash / Booting -->
-  <div id="splash" class="splash">
+  <!-- Splash -->
+  <div id="splash" class="splash" aria-hidden="true">
     <div class="splash-inner">
       <img src="assets/img/logo.svg" alt="Hack Club" class="splash-logo" />
       <h1 class="splash-title">Hack Club</h1>
-      <div class="splash-loader">
-        <span></span><span></span><span></span>
-      </div>
+      <div class="splash-loader"><span></span><span></span><span></span></div>
     </div>
   </div>
 
-  <!-- Background Canvas (spider network) -->
+  <!-- Animated background -->
   <canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
 
   <!-- Navbar -->
@@ -94,7 +93,7 @@
       </div>
     </section>
 
-    <!-- Our Club Info -->
+    <!-- Our Club Info (pulls from Admin > Information) -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Our Club</h2>
@@ -102,7 +101,26 @@
       </div>
     </section>
 
-    <!-- Counters -->
+    <!-- Organizers (image, name, role; socials on hover) -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Organizers</h2>
+        <div id="organizers" class="cards auto-fill"></div>
+      </div>
+    </section>
+
+    <!-- Projects (compact small cards on home) -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Projects</h2>
+        <div id="home-projects" class="cards auto-fill compact"></div>
+        <div class="center" style="margin-top:12px">
+          <a class="btn btn-ghost" href="projects.html">Browse all projects</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Stats</h2>
