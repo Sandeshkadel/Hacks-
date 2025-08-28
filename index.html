@@ -14,16 +14,21 @@
   <script defer src="assets/js/app.js"></script>
 </head>
 <body class="theme-gradient">
+  <!-- Splash / Booting -->
   <div id="splash" class="splash">
     <div class="splash-inner">
       <img src="assets/img/logo.svg" alt="Hack Club" class="splash-logo" />
       <h1 class="splash-title">Hack Club</h1>
-      <div class="splash-loader"><span></span><span></span><span></span></div>
+      <div class="splash-loader">
+        <span></span><span></span><span></span>
+      </div>
     </div>
   </div>
 
+  <!-- Background Canvas (spider network) -->
   <canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
 
+  <!-- Navbar -->
   <header class="navbar">
     <div class="nav-inner">
       <a class="brand" href="https://hackclub.com" target="_blank" rel="noopener">
@@ -48,6 +53,7 @@
   </header>
 
   <main>
+    <!-- Hero -->
     <section class="hero section-pad">
       <div class="container hero-grid">
         <div class="hero-left">
@@ -67,6 +73,7 @@
       </div>
     </section>
 
+    <!-- About Hack Club -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">About Hack Club</h2>
@@ -87,6 +94,7 @@
       </div>
     </section>
 
+    <!-- Our Club Info -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Our Club</h2>
@@ -94,13 +102,7 @@
       </div>
     </section>
 
-    <section class="section-pad reveal-on-scroll">
-      <div class="container">
-        <h2 class="section-title">Organizers</h2>
-        <div id="organizers" class="organizers-grid"></div>
-      </div>
-    </section>
-
+    <!-- Counters -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Stats</h2>
@@ -121,21 +123,7 @@
       </div>
     </section>
 
-    <section class="section-pad reveal-on-scroll">
-      <div class="container">
-        <h2 class="section-title">Best Projects</h2>
-        <div class="cards three" id="best-projects"></div>
-        <div class="center"><a class="btn btn-ghost" href="projects.html">Browse all projects</a></div>
-      </div>
-    </section>
-
-    <section class="section-pad reveal-on-scroll">
-      <div class="container">
-        <h2 class="section-title">Our Resources</h2>
-        <div id="resources" class="cards three"></div>
-      </div>
-    </section>
-
+    <!-- Sponsors -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Sponsors</h2>
@@ -146,6 +134,7 @@
       </div>
     </section>
 
+    <!-- Contact Info -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Contact</h2>
@@ -154,23 +143,35 @@
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="container footer-grid">
-      <div>
-        <h4>Hack Club</h4>
-        <p><a href="https://hackclub.com" target="_blank" rel="noopener">Official Website</a></p>
+  <!-- Custom TechCrafters Footer -->
+  <footer style="background-color:#1a1a1a; color:#f0f0f0; padding:40px 20px; text-align:center; font-family:'Inter Tight', sans-serif;">
+    <div style="max-width:1200px; margin:auto;">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:20px; text-align:left;">
+        <div style="flex:1; min-width:250px;">
+          <h3 style="margin-bottom:15px; font-size:18px;">About TechCrafters</h3>
+          <p>TechCrafters is a coding and programming club for teenagers, focused on building innovative projects, learning advanced tech skills, and fostering creativity. We empower young minds to turn ideas into reality.</p>
+        </div>
+        <div style="flex:1; min-width:150px;">
+          <h3 style="margin-bottom:15px; font-size:18px;">Quick Links</h3>
+          <ul style="list-style:none; padding:0;">
+            <li><a href="/" style="color:#f0f0f0; text-decoration:none;">Home</a></li>
+            <li><a href="/projects" style="color:#f0f0f0; text-decoration:none;">Projects</a></li>
+            <li><a href="/about" style="color:#f0f0f0; text-decoration:none;">About</a></li>
+            <li><a href="/contact" style="color:#f0f0f0; text-decoration:none;">Contact</a></li>
+          </ul>
+        </div>
+        <div style="flex:1; min-width:250px;">
+          <h3 style="margin-bottom:15px; font-size:18px;">Powered by Hack Club</h3>
+          <p>We are proud members of <a href="https://hackclub.com" target="_blank" style="color:#ff4b2b; text-decoration:none;">Hack Club</a>, a global network of young programmers and makers. Hack Club inspires and supports student-led tech communities worldwide.</p>
+        </div>
+        <div style="flex:1; min-width:200px;">
+          <h3 style="margin-bottom:15px; font-size:18px;">Contact Us</h3>
+          <p>Email: <a href="mailto:sandeshkadel2474@gmail.com" style="color:#f0f0f0;">sandeshkadel2474@gmail.com</a></p>
+          <p>Location: Kathmandu, Nepal</p>
+        </div>
       </div>
-      <div>
-        <h4>Contact</h4>
-        <p id="footer-contact"></p>
-      </div>
-      <div>
-        <h4>Socials</h4>
-        <div id="footer-socials" class="socials"></div>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p>© <span id="year"></span> Hack Club — All rights reserved</p>
+      <hr style="margin:30px 0; border-color:#333;">
+      <p style="font-size:14px;">&copy; 2025 TechCrafters. All rights reserved. | Made with ❤️ by Sandesh Kadel</p>
     </div>
   </footer>
 
