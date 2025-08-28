@@ -1,7 +1,9 @@
-// LocalStorage data + auth + email outbox + CRUD helpers
+// LocalStorage-backed data and simple auth; includes organizers socials and clubs dataset
 (function(){
   const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
+  function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
+  function clone(v){ return JSON.parse(JSON.stringify(v)); }
 
   const DEFAULT = {
     settings: {
@@ -17,15 +19,40 @@
       ],
       contact: 'admin@club.local'
     },
-    clubInfo: [],
-    organizers: [],
-    sponsors: [],
+    // New: clubs dataset for index Clubs section
+    clubs: [
+      { id: uid(), name:'TechCrafters Kathmandu', link:'https://example.com/techcrafters', image:'https://placehold.co/640x360?text=TechCrafters', socials:[{name:'GitHub', url:'https://github.com/hackclub'}] },
+      { id: uid(), name:'Hack Club Pokhara', link:'https://example.com/pokhara', image:'https://placehold.co/640x360?text=Hack+Club+Pokhara' }
+    ],
+    organizers: [
+      { id: uid(), name:'Jane Doe', role:'Lead Organizer', image:'https://placehold.co/320x200?text=Jane', socials:[{name:'GitHub', url:'https://github.com/janedoe'},{name:'LinkedIn', url:'https://linkedin.com/in/janedoe'}] },
+      { id: uid(), name:'Sam Lee', role:'Coordinator', image:'https://placehold.co/320x200?text=Sam', socials:[{name:'Twitter', url:'https://x.com/samlee'}] }
+    ],
+    sponsors: [
+      { id: uid(), name:'Acme Corp', image:'https://placehold.co/240x120?text=Acme', link:'#', description:'Supporting student innovation.' },
+      { id: uid(), name:'TechNova', image:'https://placehold.co/240x120?text=TechNova', link:'#', description:'Fueling creativity and learning.' }
+    ],
     donors: [],
-    resources: [],
-    projects: [],
-    hackathons: [],
-    gallery: [],
-    courses: [],
+    resources: [
+      { id: uid(), title:'Hack Club Handbook', url:'https://guide.hackclub.com', description:'Official guides and tips.' },
+      { id: uid(), title:'Workshops', url:'https://workshops.hackclub.com', description:'Learn by building.' }
+    ],
+    projects: [
+      { id: uid(), name:'Club Site', creators:'Team', demo:'#', code:'#', description:'Our official site.', award:'month', image:'https://placehold.co/640x360?text=Club+Site' },
+      { id: uid(), name:'IoT Monitor', creators:'Alice, Bob', demo:'#', code:'#', description:'Sensor dashboard.', award:'week', image:'https://placehold.co/640x360?text=IoT+Monitor' },
+      { id: uid(), name:'Portfolio Hub', creators:'Nita', description:'Student portfolios hub.', image:'https://placehold.co/640x360?text=Portfolio+Hub' }
+    ],
+    hackathons: [
+      { id: uid(), title:'Winter Hacks', date:'2025-01-15', description:'48-hour hackathon.', participants:['Alice','Bob'], prizes:['Swag','Cash'], winners:['Team Alpha'], images:['https://placehold.co/480x300?text=Hack'] }
+    ],
+    gallery: [
+      { id: uid(), type:'image', src:'https://placehold.co/600x400?text=Workshop', description:'Workshop' },
+      { id: uid(), type:'video', src:'https://www.w3schools.com/html/mov_bbb.mp4', description:'Highlights' }
+    ],
+    courses: [
+      { id: uid(), title:'Intro to Web', level:'beginner', url:'https://youtube.com', embed:'' },
+      { id: uid(), title:'React Deep Dive', level:'advanced', url:'https://youtube.com', embed:'' }
+    ],
     information: {
       goals: '<p>Our goals: build, learn, share.</p>',
       motto: '<p>Our motto: Ship it!</p>',
@@ -40,12 +67,8 @@
     emails: []
   };
 
-  function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
-  function clone(v){ return JSON.parse(JSON.stringify(v)); }
-
   function setData(data){
     localStorage.setItem(KEY, JSON.stringify(data));
-    // Notify same-tab listeners
     window.dispatchEvent?.(new CustomEvent('clubDataUpdated', { detail: { key: KEY } }));
   }
   function getData(){
@@ -54,13 +77,14 @@
       const data = raw ? JSON.parse(raw) : clone(DEFAULT);
       if (!data.settings.adminUser) { data.settings.adminUser = 'admin@club.local'; setData(data); }
       if (!data.settings.adminPassPlain) { data.settings.adminPassPlain = 'hackclub123'; setData(data); }
+      if (!Array.isArray(data.clubs)) { data.clubs = clone(DEFAULT.clubs); setData(data); }
       return data;
     }catch{ return clone(DEFAULT); }
   }
 
   async function sha256(text){
     try{
-      if (!('crypto' in window) || !window.crypto?.subtle) throw new Error('no subtle');
+      if (!('crypto' in window) || !window.crypto?.subtle) throw new Error('no subtle crypto');
       const enc = new TextEncoder().encode(text);
       const buf = await crypto.subtle.digest('SHA-256', enc);
       return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -73,22 +97,19 @@
   function setSession(s){ sessionStorage.setItem(SESSION, JSON.stringify(s)); }
 
   window.StorageAPI = {
-    // data
     getData,
     setData(newData){ setData(newData); },
     reset(){ localStorage.removeItem(KEY); },
 
-    // stats: participants only includes approved members
     stats(){
       const d = getData();
       return {
         participants: d.members.filter(m=>m.status==='approved').length,
         projects: d.projects.length,
-        organizers: d.organizers.length
+        organizers:  d.organizers.length
       };
     },
 
-    // members
     addMember(member){
       const d = getData();
       const exists = d.members.some(m =>
@@ -114,7 +135,6 @@
       setData(d);
     },
 
-    // generic lists
     upsert(listName, item){
       const d = getData();
       const list = d[listName] || [];
@@ -139,14 +159,11 @@
       setData(d);
     },
 
-    // information
     setInformationSection(section, html){
       const d = getData();
       d.information[section] = html;
       setData(d);
     },
-
-    // meeting recordings/messages/emails
     addRecording(url){
       const d = getData();
       d.meetingRecordings.push(url);
@@ -165,7 +182,6 @@
       setData(d);
     },
 
-    // settings
     settings(){ return getData().settings; },
     saveSettings(upd){
       const d = getData();
@@ -173,7 +189,6 @@
       setData(d);
     },
 
-    // auth
     async checkCredentials(username, password){
       const d = getData();
       const okUser = (username || '').toLowerCase() === (d.settings.adminUser || '').toLowerCase();
@@ -204,7 +219,6 @@
     }
   };
 
-  // Cross-tab: re-emit when other tab updates localStorage
   window.addEventListener?.('storage', (e) => {
     if (e.key === KEY) {
       window.dispatchEvent?.(new CustomEvent('clubDataUpdated', { detail: { key: KEY } }));
