@@ -1,9 +1,7 @@
-// LocalStorage-backed data and simple auth; includes organizers socials and clubs dataset
+// LocalStorage data + auth + email outbox + CRUD helpers with expanded schemas
 (function(){
   const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
-  function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
-  function clone(v){ return JSON.parse(JSON.stringify(v)); }
 
   const DEFAULT = {
     settings: {
@@ -12,53 +10,20 @@
       // SHA-256 of "hackclub123"
       adminPassHash: '2a0a6f0b5b7a314cf5e0f49c3ec6a2e3d52c2a8b66b9bb9c6a3b15f3d9a0a1a8',
       adminPassPlain: 'hackclub123',
-      donationLink: 'https://donate.stripe.com/test_12345',
-      socials: [
-        { name:'Twitter', url:'https://twitter.com/hackclub' },
-        { name:'GitHub', url:'https://github.com/hackclub' }
-      ],
+      donationLink: '',
+      socials: [],
       contact: 'admin@club.local'
     },
-    // New: clubs dataset for index Clubs section
-    clubs: [
-      { id: uid(), name:'TechCrafters Kathmandu', link:'https://example.com/techcrafters', image:'https://placehold.co/640x360?text=TechCrafters', socials:[{name:'GitHub', url:'https://github.com/hackclub'}] },
-      { id: uid(), name:'Hack Club Pokhara', link:'https://example.com/pokhara', image:'https://placehold.co/640x360?text=Hack+Club+Pokhara' }
-    ],
-    organizers: [
-      { id: uid(), name:'Jane Doe', role:'Lead Organizer', image:'https://placehold.co/320x200?text=Jane', socials:[{name:'GitHub', url:'https://github.com/janedoe'},{name:'LinkedIn', url:'https://linkedin.com/in/janedoe'}] },
-      { id: uid(), name:'Sam Lee', role:'Coordinator', image:'https://placehold.co/320x200?text=Sam', socials:[{name:'Twitter', url:'https://x.com/samlee'}] }
-    ],
-    sponsors: [
-      { id: uid(), name:'Acme Corp', image:'https://placehold.co/240x120?text=Acme', link:'#', description:'Supporting student innovation.' },
-      { id: uid(), name:'TechNova', image:'https://placehold.co/240x120?text=TechNova', link:'#', description:'Fueling creativity and learning.' }
-    ],
+    organizers: [],
+    sponsors: [],
     donors: [],
-    resources: [
-      { id: uid(), title:'Hack Club Handbook', url:'https://guide.hackclub.com', description:'Official guides and tips.' },
-      { id: uid(), title:'Workshops', url:'https://workshops.hackclub.com', description:'Learn by building.' }
-    ],
-    projects: [
-      { id: uid(), name:'Club Site', creators:'Team', demo:'#', code:'#', description:'Our official site.', award:'month', image:'https://placehold.co/640x360?text=Club+Site' },
-      { id: uid(), name:'IoT Monitor', creators:'Alice, Bob', demo:'#', code:'#', description:'Sensor dashboard.', award:'week', image:'https://placehold.co/640x360?text=IoT+Monitor' },
-      { id: uid(), name:'Portfolio Hub', creators:'Nita', description:'Student portfolios hub.', image:'https://placehold.co/640x360?text=Portfolio+Hub' }
-    ],
-    hackathons: [
-      { id: uid(), title:'Winter Hacks', date:'2025-01-15', description:'48-hour hackathon.', participants:['Alice','Bob'], prizes:['Swag','Cash'], winners:['Team Alpha'], images:['https://placehold.co/480x300?text=Hack'] }
-    ],
-    gallery: [
-      { id: uid(), type:'image', src:'https://placehold.co/600x400?text=Workshop', description:'Workshop' },
-      { id: uid(), type:'video', src:'https://www.w3schools.com/html/mov_bbb.mp4', description:'Highlights' }
-    ],
-    courses: [
-      { id: uid(), title:'Intro to Web', level:'beginner', url:'https://youtube.com', embed:'' },
-      { id: uid(), title:'React Deep Dive', level:'advanced', url:'https://youtube.com', embed:'' }
-    ],
+    resources: [],
+    projects: [],
+    hackathons: [],
+    gallery: [],
+    courses: [],
     information: {
-      goals: '<p>Our goals: build, learn, share.</p>',
-      motto: '<p>Our motto: Ship it!</p>',
-      what_is_hackclub: '<p>Hack Club is a global student community of makers.</p>',
-      what_is_our_club: '<p>Our club is a local chapter that meets weekly.</p>',
-      sources: '<p>Useful sources listed in Resources.</p>'
+      goals: '<p>Our goals: build, learn, share.</p>'
     },
     members: [],
     meetings: [],
@@ -67,6 +32,9 @@
     emails: []
   };
 
+  function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
+  function clone(v){ return JSON.parse(JSON.stringify(v)); }
+
   function setData(data){
     localStorage.setItem(KEY, JSON.stringify(data));
     window.dispatchEvent?.(new CustomEvent('clubDataUpdated', { detail: { key: KEY } }));
@@ -74,17 +42,27 @@
   function getData(){
     try{
       const raw = localStorage.getItem(KEY);
-      const data = raw ? JSON.parse(raw) : clone(DEFAULT);
-      if (!data.settings.adminUser) { data.settings.adminUser = 'admin@club.local'; setData(data); }
-      if (!data.settings.adminPassPlain) { data.settings.adminPassPlain = 'hackclub123'; setData(data); }
-      if (!Array.isArray(data.clubs)) { data.clubs = clone(DEFAULT.clubs); setData(data); }
-      return data;
+      const d = raw ? JSON.parse(raw) : clone(DEFAULT);
+      // migrations / defaults
+      d.settings = { ...DEFAULT.settings, ...(d.settings||{}) };
+      d.organizers = d.organizers || [];
+      d.projects = (d.projects || []).map(p => ({ makerSocials: [], ...p }));
+      d.gallery = d.gallery || [];
+      d.hackathons = d.hackathons || [];
+      d.resources = d.resources || [];
+      d.courses = d.courses || [];
+      d.sponsors = d.sponsors || [];
+      d.donors = d.donors || [];
+      d.information = d.information || {};
+      d.members = d.members || [];
+      d.meetings = d.meetings || [];
+      return d;
     }catch{ return clone(DEFAULT); }
   }
 
   async function sha256(text){
     try{
-      if (!('crypto' in window) || !window.crypto?.subtle) throw new Error('no subtle crypto');
+      if (!('crypto' in window) || !window.crypto?.subtle) throw new Error('no subtle');
       const enc = new TextEncoder().encode(text);
       const buf = await crypto.subtle.digest('SHA-256', enc);
       return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -97,19 +75,22 @@
   function setSession(s){ sessionStorage.setItem(SESSION, JSON.stringify(s)); }
 
   window.StorageAPI = {
+    // data
     getData,
     setData(newData){ setData(newData); },
     reset(){ localStorage.removeItem(KEY); },
 
+    // stats: participants only includes approved members
     stats(){
       const d = getData();
       return {
         participants: d.members.filter(m=>m.status==='approved').length,
         projects: d.projects.length,
-        organizers:  d.organizers.length
+        organizers: d.organizers.length
       };
     },
 
+    // members
     addMember(member){
       const d = getData();
       const exists = d.members.some(m =>
@@ -135,6 +116,7 @@
       setData(d);
     },
 
+    // generic lists
     upsert(listName, item){
       const d = getData();
       const list = d[listName] || [];
@@ -159,11 +141,14 @@
       setData(d);
     },
 
+    // information
     setInformationSection(section, html){
       const d = getData();
       d.information[section] = html;
       setData(d);
     },
+
+    // meeting recordings/messages/emails
     addRecording(url){
       const d = getData();
       d.meetingRecordings.push(url);
@@ -182,6 +167,7 @@
       setData(d);
     },
 
+    // settings
     settings(){ return getData().settings; },
     saveSettings(upd){
       const d = getData();
@@ -189,6 +175,7 @@
       setData(d);
     },
 
+    // auth
     async checkCredentials(username, password){
       const d = getData();
       const okUser = (username || '').toLowerCase() === (d.settings.adminUser || '').toLowerCase();
