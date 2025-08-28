@@ -38,7 +38,7 @@
   <main class="section-pad">
     <div class="container narrow">
       <h1 class="section-title">Join Hack Club</h1>
-      <p class="subtitle center">Fill in all fields. You’ll receive a confirmation email. Duplicate entries (same name/email/contact) are rejected.</p>
+      <p class="subtitle center">All fields required. You’ll receive confirmation. Duplicates are rejected.</p>
       <form id="join-form" class="form card hover-lift">
         <div class="grid-2">
           <label>Full Name
@@ -47,8 +47,13 @@
           <label>Caste
             <input type="text" name="caste" required />
           </label>
-          <label>Contact
-            <input type="tel" name="contact" required />
+          <label>Country
+            <input list="countries" name="country" id="country" placeholder="Search your country" required />
+            <datalist id="countries"></datalist>
+          </label>
+          <label>Contact (with country code)
+            <input type="tel" name="contact" id="contact" placeholder="+9779800000000" required />
+            <small class="muted">Enter a valid number for your selected country (E.164 format)</small>
           </label>
           <label>Location
             <input type="text" name="location" required />
@@ -66,7 +71,7 @@
       </form>
 
       <div class="info card soft center">
-        <p>After approval, you will receive an email with next steps. If declined, you’ll receive a reschedule message.</p>
+        <p>After approval, you will receive an email. If declined, you’ll receive a message to re-apply later.</p>
       </div>
     </div>
   </main>
@@ -79,26 +84,59 @@
   <div id="toast" class="toast"></div>
 
   <script>
+    const COUNTRY_DATA = [
+      { name:'Nepal', code:'NP', dial:'+977' },
+      { name:'India', code:'IN', dial:'+91' },
+      { name:'United States', code:'US', dial:'+1' },
+      { name:'United Kingdom', code:'GB', dial:'+44' },
+      { name:'Canada', code:'CA', dial:'+1' },
+      { name:'Australia', code:'AU', dial:'+61' },
+      { name:'Germany', code:'DE', dial:'+49' },
+      { name:'France', code:'FR', dial:'+33' },
+      { name:'Japan', code:'JP', dial:'+81' },
+      { name:'China', code:'CN', dial:'+86' }
+    ];
+    function populateCountries(){
+      const dl = document.getElementById('countries');
+      dl.innerHTML = COUNTRY_DATA.map(c => `<option value="${c.name} (${c.dial})"></option>`).join('');
+    }
+    function validatePhone(){
+      const countryVal = document.getElementById('country').value;
+      const contact = document.getElementById('contact').value.trim();
+      const dial = (countryVal.match(/\((\+\d+)\)/)||[])[1] || '';
+      const e164 = /^\+\d{6,15}$/;
+      if (!e164.test(contact) || (dial && !contact.startsWith(dial))){
+        window.UI.toast('Please enter a valid number according to the country code', 'error');
+        return false;
+      }
+      return true;
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+      populateCountries();
       const form = document.getElementById('join-form');
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!validatePhone()) return;
         const data = Object.fromEntries(new FormData(form).entries());
         const res = window.StorageAPI.addMember(data);
         if (!res.ok) {
           window.UI.toast(res.message || 'Already registered', 'error');
           return;
         }
-        window.UI.toast('Registration submitted! Confirmation email sent.', 'success');
+        window.UI.toast('Registration submitted!', 'success');
         try {
           await window.EmailAPI.send({
             to: data.email,
             subject: 'Hack Club: Registration Received',
             message: `Hi ${data.name}, we received your registration. You’ll be notified after review.`
           });
-        } catch (err) {
-          console.warn('Email send failed (mock or provider error)', err);
-        }
+          await window.EmailAPI.send({
+            to: (window.AppConfig?.email?.adminEmail) || 'admin@club.local',
+            subject: 'New Registration',
+            message: `${data.name} (${data.email}) just registered. Review in Admin > Members.`
+          });
+        } catch (err) {}
         form.reset();
       });
     });
