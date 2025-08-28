@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Contact</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/email.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="join.html">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html">Projects</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="hackathons.html">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html" class="active">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section-pad">
+    <div class="container narrow">
+      <h1 class="section-title">Contact Us</h1>
+      <div class="grid-2">
+        <form id="contact-form" class="form card hover-lift">
+          <label>Name
+            <input type="text" name="name" required />
+          </label>
+          <label>Email
+            <input type="email" name="email" required />
+          </label>
+          <label>Message
+            <textarea name="message" rows="4" required></textarea>
+          </label>
+          <button class="btn btn-primary" type="submit">Send</button>
+        </form>
+        <div class="card soft">
+          <h3>Location</h3>
+          <div class="map-embed">
+            <iframe title="Map" src="https://maps.google.com/maps?q=Hack%20Club&t=&z=13&ie=UTF8&iwloc=&output=embed"></iframe>
+          </div>
+          <p class="muted">We’ll get back to you via email.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer simple">
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Hack Club</p>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('contact-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        try {
+          await window.EmailAPI.send({
+            to: (window.AppConfig?.email?.adminEmail) || 'admin@example.com',
+            subject: `Contact: ${data.name}`,
+            message: `${data.message}\nFrom: ${data.name} <${data.email}>`
+          });
+          window.UI.toast('Message sent!', 'success');
+          form.reset();
+        } catch (err) {
+          window.UI.toast('Failed to send message (mock or provider error)', 'error');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

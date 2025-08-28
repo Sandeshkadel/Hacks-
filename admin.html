@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/admin.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/email.js"></script>
+  <script defer src="assets/js/zoom.js"></script>
+  <script defer src="assets/js/admin.js"></script>
+</head>
+<body class="theme-gradient admin-shell">
+  <header class="admin-topbar">
+    <div class="container admin-topbar-inner">
+      <div class="brand-row">
+        <img src="assets/img/logo.svg" alt="Hack Club" />
+        <strong>Admin</strong>
+      </div>
+      <div class="spacer"></div>
+      <button id="logout" class="chip danger">Logout</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <aside class="admin-sidebar">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="members">Members</button>
+      <button data-tab="projects">Projects</button>
+      <button data-tab="hackathons">Hackathons</button>
+      <button data-tab="gallery">Gallery</button>
+      <button data-tab="sponsors">Sponsors</button>
+      <button data-tab="courses">Courses</button>
+      <button data-tab="information">Information</button>
+      <button data-tab="meetings">Meetings</button>
+      <button data-tab="settings">Settings</button>
+      <button data-tab="emails">Emails</button>
+    </aside>
+
+    <section class="admin-content">
+      <!-- Dashboard -->
+      <div class="tab" id="tab-dashboard">
+        <h2>Overview</h2>
+        <div class="cards three">
+          <div class="card soft"><h3 id="stat-members">0</h3><p>Members</p></div>
+          <div class="card soft"><h3 id="stat-projects">0</h3><p>Projects</p></div>
+          <div class="card soft"><h3 id="stat-hackathons">0</h3><p>Hackathons</p></div>
+        </div>
+      </div>
+
+      <!-- Members -->
+      <div class="tab hidden" id="tab-members">
+        <h2>Members</h2>
+        <div class="table" id="members-table"></div>
+      </div>
+
+      <!-- Projects -->
+      <div class="tab hidden" id="tab-projects">
+        <h2>Projects</h2>
+        <form id="form-project" class="form row">
+          <input name="id" type="hidden" />
+          <input name="name" placeholder="Project name" required />
+          <input name="creators" placeholder="Creators" />
+          <input name="demo" placeholder="Demo URL" />
+          <input name="code" placeholder="Code URL" />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="projects-list" class="cards three sortable"></div>
+      </div>
+
+      <!-- Hackathons -->
+      <div class="tab hidden" id="tab-hackathons">
+        <h2>Hackathons</h2>
+        <form id="form-hackathon" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <input name="date" placeholder="Date" />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="hackathons-list" class="cards two"></div>
+      </div>
+
+      <!-- Gallery -->
+      <div class="tab hidden" id="tab-gallery">
+        <h2>Gallery</h2>
+        <form id="form-gallery" class="form row">
+          <input name="id" type="hidden" />
+          <select name="type">
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+          </select>
+          <input name="src" placeholder="URL" required />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="gallery-list" class="cards three"></div>
+      </div>
+
+      <!-- Sponsors -->
+      <div class="tab hidden" id="tab-sponsors">
+        <h2>Sponsors</h2>
+        <form id="form-sponsor" class="form row">
+          <input name="id" type="hidden" />
+          <input name="name" placeholder="Name" required />
+          <input name="image" placeholder="Image URL" />
+          <input name="link" placeholder="Website" />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="sponsors-list" class="cards three"></div>
+      </div>
+
+      <!-- Courses -->
+      <div class="tab hidden" id="tab-courses">
+        <h2>Courses & Videos</h2>
+        <form id="form-course" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <select name="level">
+            <option value="beginner">beginner</option>
+            <option value="intermediate">intermediate</option>
+            <option value="advanced">advanced</option>
+          </select>
+          <input name="url" placeholder="Video URL (optional)" />
+          <textarea name="embed" placeholder="Embed HTML (optional)"></textarea>
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="courses-list" class="cards three sortable"></div>
+      </div>
+
+      <!-- Information -->
+      <div class="tab hidden" id="tab-information">
+        <h2>Information Page</h2>
+        <div class="grid-2">
+          <div>
+            <h3>Edit</h3>
+            <textarea id="info-editor" class="mono" rows="12" placeholder="HTML content"></textarea>
+            <div class="row">
+              <button id="info-save" class="btn btn-primary">Save</button>
+              <button id="info-reset" class="btn">Revert</button>
+            </div>
+          </div>
+          <div>
+            <h3>Live Preview</h3>
+            <article id="info-preview" class="card soft"></article>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meetings -->
+      <div class="tab hidden" id="tab-meetings">
+        <h2>Meetings</h2>
+        <form id="form-meeting" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <input name="date" placeholder="Date" />
+          <input name="description" placeholder="Description" />
+          <input name="zoomLink" placeholder="Zoom Link (optional)" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="meetings-list" class="cards two"></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="tab hidden" id="tab-settings">
+        <h2>Settings</h2>
+        <form id="form-settings" class="form">
+          <label>Club Email (receives contact forms)
+            <input name="adminEmail" type="email" required />
+          </label>
+          <label>Admin Username (email)
+            <input name="username" type="email" required />
+          </label>
+          <label>Admin Password (leave blank to keep)
+            <input name="password" type="password" />
+          </label>
+          <label>Donation Link (Stripe/PayPal)
+            <input name="donationLink" type="url" />
+          </label>
+          <button class="btn btn-primary" type="submit">Save Settings</button>
+        </form>
+      </div>
+
+      <!-- Emails -->
+      <div class="tab hidden" id="tab-emails">
+        <h2>Emails Outbox (Mock)</h2>
+        <div id="emails-list" class="table"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+</body>
+</html>

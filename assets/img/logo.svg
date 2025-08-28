@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hack Club Logo">
+<rect width="256" height="256" rx="40" fill="#0b0c1a"/>
+<g filter="url(#f1)">
+<path d="M64 72h32v40h64V72h32v112h-32v-40H96v40H64V72z" fill="url(#g1)"/>
+</g>
+<defs>
+  <linearGradient id="g1" x1="64" y1="72" x2="224" y2="184" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#00E5FF"/><stop offset="1" stop-color="#7A5CFF"/>
+  </linearGradient>
+  <filter id="f1" x="54" y="62" width="172" height="132" color-interpolation-filters="sRGB">
+    <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#00E5FF" flood-opacity="0.25"/>
+  </filter>
+</defs>
+</svg>

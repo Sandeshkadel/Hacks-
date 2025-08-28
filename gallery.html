@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Gallery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="join.html">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html">Projects</a>
+        <a href="gallery.html" class="active">Gallery</a>
+        <a href="hackathons.html">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section-pad">
+    <div class="container">
+      <h1 class="section-title">Gallery</h1>
+      <div id="gallery-grid" class="masonry"></div>
+    </div>
+  </main>
+
+  <footer class="footer simple">
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Hack Club</p>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const grid = document.getElementById('gallery-grid');
+      const items = window.StorageAPI.getData().gallery;
+      grid.innerHTML = items.map(g => `
+        <div class="masonry-item card hover-lift">
+          ${g.type === 'video' ? `
+            <div class="video-wrap">
+              <video src="${window.UI.escape(g.src)}" controls></video>
+            </div>
+          ` : `
+            <img src="${window.UI.escape(g.src)}" alt="${window.UI.escape(g.description || 'gallery')}" />
+          `}
+          <div class="masonry-footer">
+            <span>${window.UI.escape(g.description || '')}</span>
+          </div>
+        </div>
+      `).join('');
+    });
+  </script>
+</body>
+</html>

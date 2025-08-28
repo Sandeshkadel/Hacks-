@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Projects</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="join.html">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html" class="active">Projects</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="hackathons.html">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section-pad">
+    <div class="container">
+      <h1 class="section-title">Projects</h1>
+      <div id="project-grid" class="cards three"></div>
+    </div>
+  </main>
+
+  <footer class="footer simple">
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Hack Club</p>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const grid = document.getElementById('project-grid');
+      const items = window.StorageAPI.getData().projects;
+      grid.innerHTML = items.map(p => `
+        <article class="card project hover-lift">
+          <h3>${window.UI.escape(p.name)}</h3>
+          <p class="muted">By: ${window.UI.escape(p.creators || '')}</p>
+          <p>${window.UI.escape(p.description || '')}</p>
+          <div class="project-links">
+            ${p.demo ? `<a class="chip" href="${window.UI.escape(p.demo)}" target="_blank">Demo</a>` : ''}
+            ${p.code ? `<a class="chip" href="${window.UI.escape(p.code)}" target="_blank">Code</a>` : ''}
+          </div>
+        </article>
+      `).join('');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Home</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/backgrounds/spider.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <!-- Splash / Booting -->
+  <div id="splash" class="splash">
+    <div class="splash-inner">
+      <img src="assets/img/logo.svg" alt="Hack Club" class="splash-logo" />
+      <h1 class="splash-title">Hack Club</h1>
+      <div class="splash-loader">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Background Canvas (spider network) -->
+  <canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank" rel="noopener">
+        <img src="assets/img/logo.svg" alt="Hack Club" />
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="active">Home</a>
+        <a href="join.html">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html">Projects</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="hackathons.html">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html" class="admin-link">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero section-pad">
+      <div class="container hero-grid">
+        <div class="hero-left">
+          <h1 class="title">Welcome to <span class="accent">Hack Club</span></h1>
+          <p class="subtitle">Build. Learn. Ship. A community for creators—hackers, designers, and makers.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="join.html">Join Now</a>
+            <a class="btn btn-ghost" href="projects.html">Explore Projects</a>
+          </div>
+        </div>
+        <div class="hero-right">
+          <div class="floating-card">
+            <div class="waves"></div>
+            <div class="orb"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Hack Club -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">About Hack Club</h2>
+        <div class="cards three">
+          <a class="card hover-pop" href="https://hackclub.com" target="_blank" rel="noopener">
+            <h3>Official Site</h3>
+            <p>Discover Hack Club’s global student maker community.</p>
+          </a>
+          <a class="card hover-pop" href="https://github.com/hackclub" target="_blank" rel="noopener">
+            <h3>GitHub</h3>
+            <p>Open-source projects, tools, and resources.</p>
+          </a>
+          <a class="card hover-pop" href="https://hackclub.com/slack" target="_blank" rel="noopener">
+            <h3>Slack</h3>
+            <p>Join thousands of student hackers around the world.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Our Club Info -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Our Club</h2>
+        <div id="club-info" class="cards three"></div>
+      </div>
+    </section>
+
+    <!-- Counters -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Stats</h2>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-number" data-counter="participants">0</div>
+            <div class="stat-label">Participants</div>
+          </div>
+          <div class="stat">
+            <div class="stat-number" data-counter="projects">0</div>
+            <div class="stat-label">Projects</div>
+          </div>
+          <div class="stat">
+            <div class="stat-number" data-counter="organizers">0</div>
+            <div class="stat-label">Organizers</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sponsors -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Sponsors</h2>
+        <div id="home-sponsors" class="cards four"></div>
+        <div class="center">
+          <a class="btn btn-ghost" href="sponsors.html">See all sponsors</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Info -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Contact</h2>
+        <div class="cards three" id="contact-cards"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>
+        <h4>Hack Club</h4>
+        <p><a href="https://hackclub.com" target="_blank" rel="noopener">Official Website</a></p>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <p id="footer-contact"></p>
+      </div>
+      <div>
+        <h4>Socials</h4>
+        <div id="footer-socials" class="socials"></div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© <span id="year"></span> Hack Club — All rights reserved</p>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Hackathons</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="join.html">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html">Projects</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="hackathons.html" class="active">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section-pad">
+    <div class="container">
+      <h1 class="section-title">Hackathons</h1>
+      <div id="hackathon-grid" class="cards three"></div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal hidden">
+      <div class="modal-content card">
+        <button class="modal-close" aria-label="Close">&times;</button>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer simple">
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Hack Club</p>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const grid = document.getElementById('hackathon-grid');
+      const items = window.StorageAPI.getData().hackathons;
+      grid.innerHTML = items.map(h => `
+        <article class="card flip hover-lift" data-id="${h.id}">
+          <div class="flip-inner">
+            <div class="flip-front">
+              <h3>${window.UI.escape(h.title)}</h3>
+              <p class="muted">${window.UI.escape(h.date || '')}</p>
+              <p>${window.UI.escape(h.description || '')}</p>
+            </div>
+            <div class="flip-back center">
+              <button class="btn btn-primary" data-view>View Details</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+
+      grid.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-view]');
+        if (!btn) return;
+        const card = btn.closest('[data-id]');
+        const id = card?.dataset.id;
+        const item = window.StorageAPI.getData().hackathons.find(x => String(x.id) === String(id));
+        if (!item) return;
+        const body = `
+          <h3>${window.UI.escape(item.title)}</h3>
+          <p class="muted">${window.UI.escape(item.date || '')}</p>
+          <p>${window.UI.escape(item.description || '')}</p>
+          ${item.participants?.length ? `<h4>Participants</h4><ul>${item.participants.map(p=>`<li>${window.UI.escape(p)}</li>`).join('')}</ul>`:''}
+          ${item.prizes?.length ? `<h4>Prizes</h4><ul>${item.prizes.map(p=>`<li>${window.UI.escape(p)}</li>`).join('')}</ul>`:''}
+          ${item.winners?.length ? `<h4>Winners</h4><ul>${item.winners.map(p=>`<li>${window.UI.escape(p)}</li>`).join('')}</ul>`:''}
+          ${item.images?.length ? `<div class="grid-auto">${item.images.map(src=>`<img class="thumb" src="${window.UI.escape(src)}" alt="image"/>`).join('')}</div>`:''}
+        `;
+        window.UI.openModal(body);
+      });
+
+      document.querySelector('.modal-close')?.addEventListener('click', window.UI.closeModal);
+      document.getElementById('modal')?.addEventListener('click', (e)=>{ if(e.target.id==='modal') window.UI.closeModal(); });
+    });
+  </script>
+</body>
+</html>

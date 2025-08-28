@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Courses & Videos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="join.html">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html">Projects</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="hackathons.html">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html" class="active">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section-pad">
+    <div class="container">
+      <h1 class="section-title">Courses & Videos</h1>
+      <div class="filters">
+        <button class="chip" data-filter="all">All</button>
+        <button class="chip" data-filter="beginner">Beginner</button>
+        <button class="chip" data-filter="intermediate">Intermediate</button>
+        <button class="chip" data-filter="advanced">Advanced</button>
+      </div>
+      <div id="course-grid" class="cards three"></div>
+    </div>
+  </main>
+
+  <footer class="footer simple">
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Hack Club</p>
+    </div>
+  </footer>
+
+  <script>
+    let current = 'all';
+    function render() {
+      const grid = document.getElementById('course-grid');
+      const items = window.StorageAPI.getData().courses;
+      const filtered = current==='all' ? items : items.filter(c => (c.level||'').toLowerCase() === current);
+      grid.innerHTML = filtered.map(c => `
+        <article class="card hover-lift">
+          <h3>${window.UI.escape(c.title)}</h3>
+          <p class="muted">${window.UI.escape(c.level || '')}</p>
+          ${c.embed ? `<div class="video-wrap">${c.embed}</div>` : c.url ? `<a class="btn btn-primary" href="${window.UI.escape(c.url)}" target="_blank">Watch</a>` : ''}
+        </article>
+      `).join('');
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.addEventListener('click', () => { current = btn.dataset.filter; render(); });
+      });
+      render();
+    });
+  </script>
+</body>
+</html>

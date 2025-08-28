@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Join</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/email.js"></script>
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="theme-gradient">
+  <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="join.html" class="active">Join Club</a>
+        <a href="sponsors.html">Sponsors</a>
+        <a href="projects.html">Projects</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="hackathons.html">Hackathons</a>
+        <a href="meetings.html">Meetings</a>
+        <a href="contact.html">Contact</a>
+        <a href="donation.html">Donation</a>
+        <a href="courses.html">Courses/Videos</a>
+        <a href="info.html">Information</a>
+        <a href="admin-login.html">Login</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section-pad">
+    <div class="container narrow">
+      <h1 class="section-title">Join Hack Club</h1>
+      <p class="subtitle center">Fill in all fields. You’ll receive a confirmation email. Duplicate entries (same name/email/contact) are rejected.</p>
+      <form id="join-form" class="form card hover-lift">
+        <div class="grid-2">
+          <label>Full Name
+            <input type="text" name="name" required />
+          </label>
+          <label>Caste
+            <input type="text" name="caste" required />
+          </label>
+          <label>Contact
+            <input type="tel" name="contact" required />
+          </label>
+          <label>Location
+            <input type="text" name="location" required />
+          </label>
+          <label>Email
+            <input type="email" name="email" required />
+          </label>
+          <label>Message
+            <textarea name="message" rows="3" required></textarea>
+          </label>
+        </div>
+        <div class="center">
+          <button class="btn btn-primary" type="submit">Submit</button>
+        </div>
+      </form>
+
+      <div class="info card soft center">
+        <p>After approval, you will receive an email with next steps. If declined, you’ll receive a reschedule message.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer simple">
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Hack Club</p>
+    </div>
+  </footer>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('join-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        const res = window.StorageAPI.addMember(data);
+        if (!res.ok) {
+          window.UI.toast(res.message || 'Already registered', 'error');
+          return;
+        }
+        window.UI.toast('Registration submitted! Confirmation email sent.', 'success');
+        try {
+          await window.EmailAPI.send({
+            to: data.email,
+            subject: 'Hack Club: Registration Received',
+            message: `Hi ${data.name}, we received your registration. You’ll be notified after review.`
+          });
+        } catch (err) {
+          console.warn('Email send failed (mock or provider error)', err);
+        }
+        form.reset();
+      });
+    });
+  </script>
+</body>
+</html>
