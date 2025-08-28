@@ -37,7 +37,10 @@
       { id: uid(), title:'Intro to Web', level:'beginner', url:'https://youtube.com', embed:'', thumb:'', description:'Basics' }
     ],
     information: {
-      goals: '<p>Our goals: build, learn, share.</p>'
+      goals: '<p>Our goals: build, learn, share.</p>',
+      motto: '<p>Our motto: Ship it!</p>',
+      what_is_hackclub: '<p>Hack Club is a global student community of makers.</p>',
+      what_is_our_club: '<p>Our club is a local chapter that meets weekly.</p>'
     },
     members: [
       { id: uid(), name:'John Doe', caste:'General', contact:'+9779800000000', location:'City', email:'john@example.com', message:'Excited to join!', status:'pending' }
