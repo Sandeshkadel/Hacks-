@@ -19,9 +19,7 @@
     <div class="splash-inner">
       <img src="assets/img/logo.svg" alt="Hack Club" class="splash-logo" />
       <h1 class="splash-title">Hack Club</h1>
-      <div class="splash-loader">
-        <span></span><span></span><span></span>
-      </div>
+      <div class="splash-loader"><span></span><span></span><span></span></div>
     </div>
   </div>
 
@@ -73,36 +71,34 @@
       </div>
     </section>
 
-    <!-- About Hack Club -->
+    <!-- Organizers (hover overlay with socials) -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
-        <h2 class="section-title">About Hack Club</h2>
-        <div class="cards three">
-          <a class="card hover-pop" href="https://hackclub.com" target="_blank" rel="noopener">
-            <h3>Official Site</h3>
-            <p>Discover Hack Club’s global student maker community.</p>
-          </a>
-          <a class="card hover-pop" href="https://github.com/hackclub" target="_blank" rel="noopener">
-            <h3>GitHub</h3>
-            <p>Open-source projects, tools, and resources.</p>
-          </a>
-          <a class="card hover-pop" href="https://hackclub.com/slack" target="_blank" rel="noopener">
-            <h3>Slack</h3>
-            <p>Join thousands of student hackers around the world.</p>
-          </a>
+        <h2 class="section-title">Organizers</h2>
+        <div id="organizers-grid" class="cards auto-fill"></div>
+      </div>
+    </section>
+
+    <!-- Clubs (name + link, same hover as organizers) -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Clubs</h2>
+        <div id="clubs-grid" class="cards auto-fill"></div>
+      </div>
+    </section>
+
+    <!-- Projects on Home (hover overlay) -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Projects</h2>
+        <div id="home-projects" class="cards auto-fill"></div>
+        <div class="center" style="margin-top:12px">
+          <a class="btn btn-ghost" href="projects.html">Browse all projects</a>
         </div>
       </div>
     </section>
 
-    <!-- Our Club Info -->
-    <section class="section-pad reveal-on-scroll">
-      <div class="container">
-        <h2 class="section-title">Our Club</h2>
-        <div id="club-info" class="cards three"></div>
-      </div>
-    </section>
-
-    <!-- Counters -->
+    <!-- Stats -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Stats</h2>
