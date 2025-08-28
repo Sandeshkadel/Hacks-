@@ -8,10 +8,10 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
   <script defer src="assets/js/storage.js"></script>
   <script defer src="assets/js/ui.js"></script>
-  <script defer src="assets/js/app.js"></script>
 </head>
 <body class="theme-gradient">
   <canvas id="bg-canvas" class="bg-canvas"></canvas>
+
   <header class="navbar">
     <div class="nav-inner">
       <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
@@ -36,6 +36,7 @@
   <main class="section-pad">
     <div class="container narrow">
       <h1 class="section-title">Admin Login</h1>
+
       <form id="login-form" class="form card hover-lift" autocomplete="on">
         <label>Admin ID (email)
           <input type="email" name="username" id="username" required autocomplete="username" />
@@ -43,13 +44,18 @@
         <label>Password
           <input type="password" name="password" id="password" required autocomplete="current-password" />
         </label>
+
         <label class="row" style="align-items:center; gap:8px; margin:8px 0 4px">
           <input type="checkbox" id="show-pass" />
           <span class="muted">Show password</span>
         </label>
+
         <button class="btn btn-primary" type="submit" id="login-btn">Login</button>
-        <p class="muted" id="ctx-note" style="margin-top:8px"></p>
+
+        <div id="login-msg" class="msg muted" style="margin-top:10px"></div>
+        <p class="muted" id="ctx-note" style="margin-top:6px"></p>
       </form>
+
       <p class="muted center" style="margin-top:10px">Default: admin@club.local / hackclub123</p>
     </div>
   </main>
@@ -62,17 +68,24 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      // Redirect if already logged in in this tab
       try { if (window.StorageAPI.isAuthed()) { location.href = 'admin.html'; return; } } catch {}
 
       const form = document.getElementById('login-form');
       const userEl = document.getElementById('username');
       const passEl = document.getElementById('password');
       const show = document.getElementById('show-pass');
+      const btn = document.getElementById('login-btn');
+      const msg = document.getElementById('login-msg');
       const note = document.getElementById('ctx-note');
 
-      // Crypto note (we still support fallback)
       if (!('crypto' in window) || !window.crypto?.subtle) {
-        note.textContent = 'Note: Secure crypto not available in this context; using safe fallback to allow login.';
+        note.textContent = 'Note: Secure crypto not available; using fallback so login still works.';
+      }
+
+      function setMsg(text, type){
+        msg.textContent = text || '';
+        msg.className = 'msg ' + (type || 'muted');
       }
 
       show.addEventListener('change', () => {
@@ -83,33 +96,42 @@
         e?.preventDefault?.();
         const username = userEl.value.trim();
         const password = passEl.value;
-        if (!username || !password) {
-          window.UI.toast('Please enter ID and password', 'error');
+
+        if (!username || !password){
+          setMsg('Please enter ID and password', 'error');
           return;
         }
+
         try {
+          btn.disabled = true;
+          btn.textContent = 'Logging in…';
+
           const res = await window.StorageAPI.checkCredentials(username, password);
           if (!res.ok) {
-            if (res.reason === 'user') window.UI.toast('Admin ID is wrong', 'error');
-            else if (res.reason === 'pass') window.UI.toast('Password is wrong', 'error');
-            else window.UI.toast('Login failed', 'error');
+            if (res.reason === 'user') setMsg('Admin ID is wrong', 'error');
+            else if (res.reason === 'pass') setMsg('Password is wrong', 'error');
+            else setMsg('Login failed', 'error');
             return;
           }
+
           const ok = await window.StorageAPI.login(username, password);
           if (ok) {
-            window.UI.toast('Welcome back!', 'success');
+            setMsg('Login successful. Redirecting…', 'success');
             location.href = 'admin.html';
           } else {
-            window.UI.toast('Login failed', 'error');
+            setMsg('Login failed', 'error');
           }
         } catch (err) {
           console.error(err);
-          window.UI.toast('Unexpected error, please try again', 'error');
+          setMsg('Unexpected error, please try again', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Login';
         }
       }
 
       form.addEventListener('submit', doLogin);
-      document.getElementById('login-btn').addEventListener('click', doLogin);
+      btn.addEventListener('click', doLogin);
     });
   </script>
 </body>
