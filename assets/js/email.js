@@ -1,15 +1,35 @@
-// Email API (mock by default, EmailJS optional)
+// Simple mock email API with optional EmailJS integration
 (function(){
-  async function send({to, subject, message}){
-    const cfg = window.AppConfig?.email || {};
-    if (cfg.enabled && cfg.provider === 'emailjs'){
-      // Requires EmailJS SDK or direct fetch to their API with template.
-      // Minimal demo using their REST endpoint is omitted for security.
-      // Instead, record in outbox and warn:
-      console.warn('EmailJS enabled but client REST not implemented. Falling back to outbox.');
+  const cfg = window.AppConfig || {};
+  async function sendViaEmailJS({ to, subject, message }){
+    if (!cfg.email?.emailjs?.serviceId || !cfg.email?.emailjs?.templateId || !cfg.email?.emailjs?.publicKey) {
+      throw new Error('EmailJS not configured');
     }
-    window.StorageAPI.pushEmail({ to, subject, message });
+    // Example EmailJS client usage (pseudo; adapt if you include EmailJS SDK)
+    const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        service_id: cfg.email.emailjs.serviceId,
+        template_id: cfg.email.emailjs.templateId,
+        user_id: cfg.email.emailjs.publicKey,
+        template_params: { to, subject, message }
+      })
+    });
+    if (!res.ok) throw new Error('EmailJS send failed');
     return true;
   }
-  window.EmailAPI = { send };
+
+  window.EmailAPI = {
+    async send({ to, subject, message }){
+      try {
+        // Try EmailJS if configured
+        await sendViaEmailJS({ to, subject, message });
+      } catch {
+        // Fallback: mock outbox
+        window.StorageAPI?.pushEmail?.({ to, subject, message });
+      }
+      return true;
+    }
+  };
 })();
