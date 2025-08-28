@@ -36,17 +36,21 @@
   <main class="section-pad">
     <div class="container narrow">
       <h1 class="section-title">Admin Login</h1>
-      <form id="login-form" class="form card hover-lift">
-        <label>Username (email)
-          <input type="email" name="username" required />
+      <form id="login-form" class="form card hover-lift" autocomplete="on">
+        <label>Admin ID (email)
+          <input type="email" name="username" id="username" required autocomplete="username" />
         </label>
         <label>Password
-          <input type="password" name="password" required />
+          <input type="password" name="password" id="password" required autocomplete="current-password" />
         </label>
-        <button class="btn btn-primary" type="submit">Login</button>
+        <label class="row" style="align-items:center; gap:8px; margin:8px 0 4px">
+          <input type="checkbox" id="show-pass" />
+          <span class="muted">Show password</span>
+        </label>
+        <button class="btn btn-primary" type="submit" id="login-btn">Login</button>
+        <p class="muted" id="ctx-note" style="margin-top:8px"></p>
       </form>
-      <p class="muted center">Default: admin@club.local / hackclub123</p>
-      <p class="muted center" id="ctx-note"></p>
+      <p class="muted center" style="margin-top:10px">Default: admin@club.local / hackclub123</p>
     </div>
   </main>
 
@@ -58,28 +62,54 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // If already logged in in this tab, go straight to admin
       try { if (window.StorageAPI.isAuthed()) { location.href = 'admin.html'; return; } } catch {}
 
       const form = document.getElementById('login-form');
+      const userEl = document.getElementById('username');
+      const passEl = document.getElementById('password');
+      const show = document.getElementById('show-pass');
       const note = document.getElementById('ctx-note');
 
-      // Inform if not secure context (we have plain fallback anyway)
+      // Crypto note (we still support fallback)
       if (!('crypto' in window) || !window.crypto?.subtle) {
         note.textContent = 'Note: Secure crypto not available in this context; using safe fallback to allow login.';
       }
 
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const {username, password} = Object.fromEntries(new FormData(form).entries());
-        const ok = await window.StorageAPI.login(username, password);
-        if (ok) {
-          window.UI.toast('Welcome back!', 'success');
-          location.href = 'admin.html';
-        } else {
-          window.UI.toast('Invalid credentials', 'error');
-        }
+      show.addEventListener('change', () => {
+        passEl.type = show.checked ? 'text' : 'password';
       });
+
+      async function doLogin(e){
+        e?.preventDefault?.();
+        const username = userEl.value.trim();
+        const password = passEl.value;
+        if (!username || !password) {
+          window.UI.toast('Please enter ID and password', 'error');
+          return;
+        }
+        try {
+          const res = await window.StorageAPI.checkCredentials(username, password);
+          if (!res.ok) {
+            if (res.reason === 'user') window.UI.toast('Admin ID is wrong', 'error');
+            else if (res.reason === 'pass') window.UI.toast('Password is wrong', 'error');
+            else window.UI.toast('Login failed', 'error');
+            return;
+          }
+          const ok = await window.StorageAPI.login(username, password);
+          if (ok) {
+            window.UI.toast('Welcome back!', 'success');
+            location.href = 'admin.html';
+          } else {
+            window.UI.toast('Login failed', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          window.UI.toast('Unexpected error, please try again', 'error');
+        }
+      }
+
+      form.addEventListener('submit', doLogin);
+      document.getElementById('login-btn').addEventListener('click', doLogin);
     });
   </script>
 </body>
