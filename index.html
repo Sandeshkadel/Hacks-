@@ -14,21 +14,16 @@
   <script defer src="assets/js/app.js"></script>
 </head>
 <body class="theme-gradient">
-  <!-- Splash / Booting -->
   <div id="splash" class="splash">
     <div class="splash-inner">
       <img src="assets/img/logo.svg" alt="Hack Club" class="splash-logo" />
       <h1 class="splash-title">Hack Club</h1>
-      <div class="splash-loader">
-        <span></span><span></span><span></span>
-      </div>
+      <div class="splash-loader"><span></span><span></span><span></span></div>
     </div>
   </div>
 
-  <!-- Background Canvas (spider network) -->
   <canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
 
-  <!-- Navbar -->
   <header class="navbar">
     <div class="nav-inner">
       <a class="brand" href="https://hackclub.com" target="_blank" rel="noopener">
@@ -53,7 +48,6 @@
   </header>
 
   <main>
-    <!-- Hero -->
     <section class="hero section-pad">
       <div class="container hero-grid">
         <div class="hero-left">
@@ -73,7 +67,6 @@
       </div>
     </section>
 
-    <!-- About Hack Club -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">About Hack Club</h2>
@@ -94,7 +87,6 @@
       </div>
     </section>
 
-    <!-- Our Club Info -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Our Club</h2>
@@ -102,7 +94,13 @@
       </div>
     </section>
 
-    <!-- Counters -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Organizers</h2>
+        <div id="organizers" class="organizers-grid"></div>
+      </div>
+    </section>
+
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Stats</h2>
@@ -123,7 +121,21 @@
       </div>
     </section>
 
-    <!-- Sponsors -->
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Best Projects</h2>
+        <div class="cards three" id="best-projects"></div>
+        <div class="center"><a class="btn btn-ghost" href="projects.html">Browse all projects</a></div>
+      </div>
+    </section>
+
+    <section class="section-pad reveal-on-scroll">
+      <div class="container">
+        <h2 class="section-title">Our Resources</h2>
+        <div id="resources" class="cards three"></div>
+      </div>
+    </section>
+
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Sponsors</h2>
@@ -134,7 +146,6 @@
       </div>
     </section>
 
-    <!-- Contact Info -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Contact</h2>
