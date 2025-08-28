@@ -1,5 +1,17 @@
-// Public site rendering: organizers, projects (compact), club info from Information, sponsors, contact, counters
+// Public site rendering: splash boot (2s), organizers, projects (compact), club info from Information, sponsors, contact, counters
 document.addEventListener('DOMContentLoaded', () => {
+  // Splash/booting: show then hide after 2 seconds
+  const splash = document.getElementById('splash');
+  if (splash) {
+    const hideSplash = () => {
+      splash.classList.add('fadeout');        // fade out
+      setTimeout(() => {                      // then remove from flow
+        splash.style.display = 'none';
+      }, 450); // match CSS transition duration
+    };
+    setTimeout(hideSplash, 2000); // visible for 2 seconds
+  }
+
   const UI = window.UI || { escape: (s)=>String(s??'') };
   const esc = (s) => UI.escape(s);
 
