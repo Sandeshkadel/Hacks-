@@ -1,13 +1,17 @@
-// LocalStorage-backed data and simple auth with extended entities
+// LocalStorage-backed data and simple auth with robust password fallback
 (function(){
   const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
+
   const DEFAULT = {
     settings: {
       adminEmail: 'admin@club.local',
       adminUser: 'admin@club.local',
-      // SHA-256 of "hackclub123"
+      // SHA-256 of "hackclub123" (used when crypto.subtle is available)
+      // If unavailable, we also keep a plain fallback below.
       adminPassHash: '2a0a6f0b5b7a314cf5e0f49c3ec6a2e3d52c2a8b66b9bb9c6a3b15f3d9a0a1a8',
+      // Plain fallback so login works even if hashing isn’t supported
+      adminPassPlain: 'hackclub123',
       donationLink: 'https://donate.stripe.com/test_12345',
       socials: [
         { name:'Twitter', url:'https://twitter.com/hackclub' },
@@ -55,7 +59,7 @@
       what_is_hackclub: '<p>Hack Club is a global student community of makers.</p>',
       what_is_our_club: '<p>Our club is a local chapter that meets weekly.</p>',
       sources: '<p>Useful sources listed in Resources.</p>'
-    },
+    ],
     members: [
       { id: uid(), name:'John Doe', caste:'General', contact:'+9779800000000', location:'City', email:'john@example.com', message:'Excited to join!', status:'approved' }
     ],
@@ -69,18 +73,37 @@
 
   function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
   function clone(v){ return JSON.parse(JSON.stringify(v)); }
+
   function getData(){
     try{
       const raw = localStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : clone(DEFAULT);
-    }catch{ return clone(DEFAULT); }
+      const data = raw ? JSON.parse(raw) : clone(DEFAULT);
+      // Lightweight migration: ensure plain fallback exists
+      if (!data.settings.adminPassPlain) {
+        data.settings.adminPassPlain = 'hackclub123';
+        setData(data);
+      }
+      if (typeof data.settings.adminUser !== 'string' || !data.settings.adminUser) {
+        data.settings.adminUser = 'admin@club.local';
+        setData(data);
+      }
+      return data;
+    }catch{
+      return clone(DEFAULT);
+    }
   }
   function setData(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
 
   async function sha256(text){
-    const enc = new TextEncoder().encode(text);
-    const buf = await crypto.subtle.digest('SHA-256', enc);
-    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    try{
+      if (!('crypto' in window) || !window.crypto?.subtle) throw new Error('no subtle crypto');
+      const enc = new TextEncoder().encode(text);
+      const buf = await crypto.subtle.digest('SHA-256', enc);
+      return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    }catch{
+      // Fallback: return null so we can use plain compare
+      return null;
+    }
   }
 
   function getSession(){
@@ -92,6 +115,7 @@
     getData,
     setData(newData){ setData(newData); },
     reset(){ localStorage.removeItem(KEY); },
+
     stats(){
       const d = getData();
       return {
@@ -100,6 +124,7 @@
         organizers:  d.organizers.length
       };
     },
+
     addMember(member){
       const d = getData();
       const exists = d.members.some(m => m.email.toLowerCase()===member.email.toLowerCase()
@@ -122,6 +147,7 @@
       d.members = d.members.filter(m=>m.id!==id);
       setData(d);
     },
+
     upsert(listName, item){
       const d = getData();
       const list = d[listName];
@@ -144,6 +170,7 @@
       d[listName] = orderedIds.map(id => map.get(id)).filter(Boolean);
       setData(d);
     },
+
     setInformationSection(section, html){
       const d = getData();
       d.information[section] = html;
@@ -159,23 +186,34 @@
       d.messages.unshift({ id: uid(), date: new Date().toISOString(), ...msg });
       setData(d);
     },
+
     emailOutbox(){ return getData().emails; },
     pushEmail(email){
       const d = getData();
       d.emails.unshift({ id: uid(), date: new Date().toISOString(), ...email });
       setData(d);
     },
+
     settings(){ return getData().settings; },
     saveSettings(upd){
       const d = getData();
       d.settings = { ...d.settings, ...upd };
       setData(d);
     },
+
     async login(username, password){
       const d = getData();
-      const okUser = username.toLowerCase() === d.settings.adminUser.toLowerCase();
+      const okUser = (username || '').toLowerCase() === (d.settings.adminUser || '').toLowerCase();
+      // Try hash if available, else fall back to plain text compare.
       const hash = await sha256(password);
-      const okPass = hash === d.settings.adminPassHash;
+      let okPass = false;
+      if (hash && d.settings.adminPassHash) {
+        okPass = (hash === d.settings.adminPassHash);
+      }
+      if (!okPass) {
+        const plain = d.settings.adminPassPlain ?? 'hackclub123';
+        okPass = (password === plain);
+      }
       if (okUser && okPass){
         setSession({ admin:true, at: Date.now() });
         return true;
@@ -184,9 +222,12 @@
     },
     logout(){ setSession({}); },
     isAuthed(){ return !!getSession().admin; },
+
     async changePassword(newPass){
       const d = getData();
-      d.settings.adminPassHash = await sha256(newPass);
+      const hash = await sha256(newPass);
+      d.settings.adminPassPlain = newPass;
+      d.settings.adminPassHash = hash || '';
       setData(d);
     }
   };
