@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     location.href = 'admin-login.html';
     return;
   }
-  const d = window.StorageAPI.getData();
 
   // Tabs
   const buttons = document.querySelectorAll('.admin-sidebar button');
@@ -22,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     location.href = 'admin-login.html';
   });
 
-  // Dashboard stats
   function refreshStats(){
     const data = window.StorageAPI.getData();
     document.getElementById('stat-members').textContent = data.members.length;
@@ -47,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="actions">
             ${m.status!=='approved' ? `<button class="chip" data-approve="${m.id}">Approve</button>`:''}
             ${m.status!=='declined' ? `<button class="chip danger" data-decline="${m.id}">Decline</button>`:''}
-            <button class="chip" data-delete="${m.id}">Delete</button>
+            <button class="chip" data-edit="${m.id}">Edit</button>
+            <button class="chip danger" data-delete="${m.id}">Delete</button>
           </div>
         </div>
       `).join('')}
@@ -57,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const approve = e.target.closest('[data-approve]')?.dataset.approve;
     const decline = e.target.closest('[data-decline]')?.dataset.decline;
     const del = e.target.closest('[data-delete]')?.dataset.delete;
+    const edit = e.target.closest('[data-edit]')?.dataset.edit;
     if (approve){
       window.StorageAPI.updateMember(approve, { status:'approved' });
       const m = window.StorageAPI.getData().members.find(x=>x.id===approve);
@@ -70,15 +70,35 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (del){
       window.StorageAPI.deleteMember(del);
       window.UI.toast('Deleted', 'success');
+    } else if (edit){
+      const m = window.StorageAPI.getData().members.find(x=>x.id===edit);
+      const name = prompt('Name', m.name); if (name==null) return;
+      const email = prompt('Email', m.email); if (email==null) return;
+      const contact = prompt('Contact', m.contact); if (contact==null) return;
+      const location = prompt('Location', m.location); if (location==null) return;
+      window.StorageAPI.updateMember(edit, { name, email, contact, location });
+      window.UI.toast('Updated', 'success');
     }
     renderMembers(); refreshStats();
   });
   renderMembers();
 
-  // Generic helpers
-  function bindCrud(listName, formSel, listSel, renderCard){
-    const form = document.getElementById(formSel);
-    const list = document.getElementById(listSel);
+  // Export members CSV
+  document.getElementById('export-members')?.addEventListener('click', ()=>{
+    const rows = window.StorageAPI.getData().members;
+    const header = ['id','name','email','contact','location','caste','status','message'];
+    const csv = [header.join(',')].concat(rows.map(r => header.map(h => JSON.stringify((r[h]??'').toString()).replace(/\u2028|\u2029/g, ' ')).join(','))).join('\n');
+    const blob = new Blob([csv], { type:'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'members.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Generic CRUD binder
+  function bindCrud(listName, formId, listId, renderCard, options={}){
+    const form = document.getElementById(formId);
+    const list = document.getElementById(listId);
     function render(){
       const items = window.StorageAPI.getData()[listName];
       list.innerHTML = items.map(x => renderCard(x)).join('');
@@ -100,29 +120,43 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = Object.fromEntries(new FormData(form).entries());
       Object.keys(data).forEach(k => { if (data[k]==='') delete data[k]; });
       if (!data.id) delete data.id;
-      const saved = window.StorageAPI.upsert(listName, data);
+      window.StorageAPI.upsert(listName, data);
       window.UI.toast('Saved', 'success');
       form.reset(); render(); refreshStats();
     });
     form.querySelector('[data-reset]')?.addEventListener('click', ()=> form.reset());
+    if (options.sortable) window.UI.sortable(list, (ids)=> window.StorageAPI.reorder(listName, ids));
     return { render, list, form };
   }
 
-  // Projects CRUD + reorder
+  // Organizers
+  const organizers = bindCrud('organizers', 'form-organizer', 'organizers-list', (o)=> `
+    <article class="card hover-lift" data-id="${o.id}">
+      <img src="${window.UI.escape(o.image||'https://placehold.co/160x160?text=?')}" alt="${window.UI.escape(o.name)}" style="width:100%; border-radius:10px"/>
+      <h3>${window.UI.escape(o.name)}</h3>
+      <p class="muted">${window.UI.escape(o.role||'')}</p>
+      <div class="row">
+        <button class="chip" data-edit="${o.id}">Edit</button>
+        <button class="chip danger" data-del="${o.id}">Delete</button>
+      </div>
+    </article>
+  `);
+  organizers.render();
+
+  // Projects
   const projects = bindCrud('projects', 'form-project', 'projects-list', (p)=> `
     <article class="card hover-lift" draggable="true" data-id="${p.id}">
-      <h3>${window.UI.escape(p.name)}</h3>
+      <h3>${window.UI.escape(p.name)} ${p.award ? `<span class="badge ${p.award}">${p.award.toUpperCase()}</span>`:''}</h3>
       <p class="muted">${window.UI.escape(p.creators||'')}</p>
       <div class="row">
         <button class="chip" data-edit="${p.id}">Edit</button>
         <button class="chip danger" data-del="${p.id}">Delete</button>
       </div>
     </article>
-  `);
+  `, { sortable:true });
   projects.render();
-  window.UI.sortable(projects.list, (ids)=> window.StorageAPI.reorder('projects', ids));
 
-  // Hackathons CRUD
+  // Hackathons
   const hacks = bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h)=> `
     <article class="card hover-lift" data-id="${h.id}">
       <h3>${window.UI.escape(h.title)}</h3>
@@ -135,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
   `);
   hacks.render();
 
-  // Gallery CRUD
+  // Gallery
   const gallery = bindCrud('gallery', 'form-gallery', 'gallery-list', (g)=> `
     <article class="card hover-lift" data-id="${g.id}">
       ${g.type==='video' ? `<div class="video-wrap"><video src="${window.UI.escape(g.src)}" controls></video></div>` : `<img src="${window.UI.escape(g.src)}" alt="${window.UI.escape(g.description||'')}" />`}
@@ -148,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
   `);
   gallery.render();
 
-  // Sponsors CRUD
+  // Sponsors
   const sponsors = bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s)=> `
     <article class="card hover-lift" data-id="${s.id}">
       <img class="sponsor-logo" src="${window.UI.escape(s.image||'')}" alt="${window.UI.escape(s.name||'')}" />
@@ -162,7 +196,22 @@ document.addEventListener('DOMContentLoaded', () => {
   `);
   sponsors.render();
 
-  // Courses CRUD + reorder
+  // Donors
+  const donors = bindCrud('donors', 'form-donor', 'donors-list', (d)=> `
+    <article class="card hover-lift" data-id="${d.id}">
+      <h3>${window.UI.escape(d.name)}</h3>
+      <p class="muted">${window.UI.escape(d.amount||'')}</p>
+      <p>${window.UI.escape(d.description||'')}</p>
+      ${d.link ? `<a class="chip" href="${window.UI.escape(d.link)}" target="_blank">Link</a>`:''}
+      <div class="row">
+        <button class="chip" data-edit="${d.id}">Edit</button>
+        <button class="chip danger" data-del="${d.id}">Delete</button>
+      </div>
+    </article>
+  `);
+  donors.render();
+
+  // Courses
   const courses = bindCrud('courses', 'form-course', 'courses-list', (c)=> `
     <article class="card hover-lift" draggable="true" data-id="${c.id}">
       <h3>${window.UI.escape(c.title)}</h3>
@@ -172,26 +221,47 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${c.id}">Delete</button>
       </div>
     </article>
-  `);
+  `, { sortable:true });
   courses.render();
-  window.UI.sortable(courses.list, (ids)=> window.StorageAPI.reorder('courses', ids));
 
-  // Information editor live preview
-  const infoEditor = document.getElementById('info-editor');
-  const infoPreview = document.getElementById('info-preview');
-  function loadInfo(){
-    const v = window.StorageAPI.getData().information?.html || '';
-    infoEditor.value = v; infoPreview.innerHTML = v;
+  // Information
+  function renderInfo(){
+    const info = window.StorageAPI.getData().information;
+    const wrap = document.getElementById('info-sections');
+    wrap.innerHTML = Object.entries(info).map(([key, html]) => `
+      <article class="card soft">
+        <h4>${key.replaceAll('_',' ')}</h4>
+        <div class="muted" style="max-height:120px; overflow:auto">${html}</div>
+      </article>
+    `).join('');
+    document.getElementById('info-preview').innerHTML = Object.values(info).join('<hr/>');
   }
-  loadInfo();
-  infoEditor.addEventListener('input', ()=> infoPreview.innerHTML = infoEditor.value);
-  document.getElementById('info-save').addEventListener('click', ()=>{
-    window.StorageAPI.setInformation(infoEditor.value);
+  renderInfo();
+  const infoForm = document.getElementById('form-info');
+  infoForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const vals = Object.fromEntries(new FormData(infoForm).entries());
+    window.StorageAPI.setInformationSection(vals.section, vals.html || '');
     window.UI.toast('Information saved', 'success');
+    infoForm.reset(); renderInfo();
   });
-  document.getElementById('info-reset').addEventListener('click', loadInfo);
+  infoForm.querySelector('[data-reset]')?.addEventListener('click', ()=> infoForm.reset());
 
-  // Meetings CRUD
+  // Resources
+  const resources = bindCrud('resources', 'form-resource', 'resources-list', (r)=> `
+    <article class="card hover-lift" data-id="${r.id}">
+      <h3>${window.UI.escape(r.title)}</h3>
+      <p>${window.UI.escape(r.description||'')}</p>
+      <a class="chip" href="${window.UI.escape(r.url)}" target="_blank">Open</a>
+      <div class="row">
+        <button class="chip" data-edit="${r.id}">Edit</button>
+        <button class="chip danger" data-del="${r.id}">Delete</button>
+      </div>
+    </article>
+  `);
+  resources.render();
+
+  // Meetings
   const meetingForm = document.getElementById('form-meeting');
   const meetingList = document.getElementById('meetings-list');
   function renderMeetings(){
@@ -214,14 +284,11 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(meetingForm).entries());
     if (!data.id) delete data.id;
-    // If no zoom link and integration enabled, create one
     if (!data.zoomLink){
       try {
         const created = await window.ZoomAPI.createMeeting({ topic: data.title, start_time: data.date });
         data.zoomLink = created.join_url;
-      } catch (err) {
-        console.warn('Zoom create failed', err);
-      }
+      } catch (err) {}
     }
     window.StorageAPI.upsert('meetings', data);
     window.UI.toast('Saved meeting', 'success');
@@ -243,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Settings
   const settingsForm = document.getElementById('form-settings');
-  const s = d.settings;
+  const s = window.StorageAPI.getData().settings;
   settingsForm.adminEmail.value = s.adminEmail || '';
   settingsForm.username.value = s.adminUser || '';
   settingsForm.donationLink.value = s.donationLink || '';
@@ -256,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.UI.toast('Settings saved', 'success');
   });
 
-  // Emails
+  // Emails outbox
   function renderEmails(){
     const list = window.StorageAPI.emailOutbox();
     const wrap = document.getElementById('emails-list');
@@ -273,4 +340,22 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
   renderEmails();
+
+  // Messages (from Contact)
+  function renderMessages(){
+    const list = window.StorageAPI.getData().messages;
+    const wrap = document.getElementById('messages-table');
+    wrap.innerHTML = `
+      <div class="row header"><div>Date</div><div>Name</div><div>Email</div><div style="grid-column: span 3">Message</div></div>
+      ${list.map(m => `
+        <div class="row">
+          <div>${new Date(m.date).toLocaleString()}</div>
+          <div>${window.UI.escape(m.name)}</div>
+          <div>${window.UI.escape(m.email)}</div>
+          <div style="grid-column: span 3">${window.UI.escape(m.message)}</div>
+        </div>
+      `).join('')}
+    `;
+  }
+  renderMessages();
 });
