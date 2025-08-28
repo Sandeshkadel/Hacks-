@@ -80,6 +80,7 @@
             subject: `Contact: ${data.name}`,
             message: `${data.message}\nFrom: ${data.name} <${data.email}>`
           });
+          window.StorageAPI.addMessage({ name: data.name, email: data.email, message: data.message });
           window.UI.toast('Message sent!', 'success');
           form.reset();
         } catch (err) {
