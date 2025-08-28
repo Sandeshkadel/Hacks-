@@ -6,86 +6,118 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const d = window.StorageAPI.getData();
 
-  // Home: Club info
-  if (document.getElementById('club-info')){
-    const wrap = document.getElementById('club-info');
-    wrap.innerHTML = (d.clubInfo||[]).map(i => `
-      <article class="card soft hover-pop">
-        <h3>${window.UI.escape(i.title || i.section || '')}</h3>
-        <p>${window.UI.escape(i.text || '')}</p>
-      </article>
-    `).join('');
-  }
+  // Helpers
+  const esc = (s) => window.UI.escape(s);
+  const iconFor = (nameOrUrl='') => {
+    const x = nameOrUrl.toLowerCase();
+    if (x.includes('github')) return 'GitHub';
+    if (x.includes('linkedin')) return 'LinkedIn';
+    if (x.includes('twitter') || x.includes('x.com')) return 'Twitter';
+    if (x.includes('instagram')) return 'Instagram';
+    if (x.includes('facebook')) return 'Facebook';
+    if (x.includes('youtube')) return 'YouTube';
+    return 'Link';
+  };
+  const renderSocials = (arr=[]) => (arr||[])
+    .map(s => `<a class="chip sm" href="${esc(s.url||'#')}" target="_blank" rel="noopener">${esc(s.name || iconFor(s.url||''))}</a>`)
+    .join('');
 
-  // Home: Organizers
-  if (document.getElementById('organizers')){
-    const org = document.getElementById('organizers');
-    org.innerHTML = (d.organizers||[]).map(o => `
-      <div class="organizer">
-        <img src="${window.UI.escape(o.image||'https://placehold.co/160x160?text=?')}" alt="${window.UI.escape(o.name)}"/>
-        <h4>${window.UI.escape(o.name)}</h4>
-        <p class="muted">${window.UI.escape(o.role||'')}</p>
-      </div>
-    `).join('');
-  }
-
-  // Home: Best projects
-  if (document.getElementById('best-projects')){
-    const b = document.getElementById('best-projects');
-    const best = [];
-    const week = d.projects.find(p=>p.award==='week');
-    const month = d.projects.find(p=>p.award==='month');
-    const year = d.projects.find(p=>p.award==='year');
-    if (week) best.push({label:'Best of Week', ...week});
-    if (month) best.push({label:'Best of Month', ...month});
-    if (year) best.push({label:'Best of Year', ...year});
-    b.innerHTML = best.map(p => `
-      <article class="card hover-lift">
-        <h3>${window.UI.escape(p.label)}: ${window.UI.escape(p.name)}</h3>
-        <p class="muted">By: ${window.UI.escape(p.creators||'')}</p>
-        <p>${window.UI.escape(p.description||'')}</p>
-        <div class="project-links">
-          ${p.demo ? `<a class="chip" href="${window.UI.escape(p.demo)}" target="_blank">Demo</a>` : ''}
-          ${p.code ? `<a class="chip" href="${window.UI.escape(p.code)}" target="_blank">Code</a>` : ''}
+  // Organizers grid with hover overlay
+  const orgWrap = document.getElementById('organizers-grid');
+  if (orgWrap){
+    orgWrap.innerHTML = (d.organizers||[]).map(o => `
+      <article class="card overlay-card">
+        <div class="img-wrap">
+          <img src="${esc(o.image||'https://placehold.co/320x200?text=Organizer')}" alt="${esc(o.name||'Organizer')}" />
+        </div>
+        <div class="info">
+          <h3>${esc(o.name||'')}</h3>
+          <p class="muted">${esc(o.role||'')}</p>
+        </div>
+        <div class="overlay">
+          <h3>${esc(o.name||'')}</h3>
+          <p class="muted">${esc(o.role||'')}</p>
+          <div class="socials">${renderSocials(o.socials||[])}</div>
         </div>
       </article>
-    `).join('') || '<p class="muted">No featured projects yet.</p>';
+    `).join('') || '<p class="muted">No organizers yet.</p>';
   }
 
-  // Home: Resources
-  if (document.getElementById('resources')){
-    const r = document.getElementById('resources');
-    r.innerHTML = (d.resources||[]).map(x => `
-      <article class="card soft hover-lift">
-        <h3>${window.UI.escape(x.title)}</h3>
-        <p>${window.UI.escape(x.description||'')}</p>
-        <a class="chip" href="${window.UI.escape(x.url)}" target="_blank">Open</a>
+  // Clubs grid with hover overlay (name + link)
+  const clubsWrap = document.getElementById('clubs-grid');
+  if (clubsWrap){
+    const clubs = d.clubs || [];
+    clubsWrap.innerHTML = clubs.map(c => `
+      <article class="card overlay-card">
+        <a class="img-wrap" href="${esc(c.link||'#')}" target="_blank" rel="noopener" title="${esc(c.name||'Club')}">
+          <img src="${esc(c.image||'https://placehold.co/320x200?text=Club')}" alt="${esc(c.name||'Club')}" />
+        </a>
+        <div class="info">
+          <h3>${esc(c.name||'')}</h3>
+          ${c.link ? `<p class="muted ellipsis"><a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.link)}</a></p>`:''}
+        </div>
+        <div class="overlay">
+          <h3>${esc(c.name||'')}</h3>
+          ${c.link ? `<p class="muted ellipsis"><a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.link)}</a></p>`:''}
+          <div class="socials">${renderSocials(c.socials||[])}</div>
+        </div>
       </article>
-    `).join('');
+    `).join('') || '<p class="muted">No clubs listed yet.</p>';
   }
 
-  // Home: Sponsors sample + contact/socials
+  // Projects on home with hover overlay (first 6 or featured ones first)
+  const projWrap = document.getElementById('home-projects');
+  if (projWrap){
+    let items = (d.projects||[]).slice();
+    // Prefer featured awards first
+    const awardOrder = { year:0, month:1, week:2, '':3, undefined:3 };
+    items.sort((a,b)=> (awardOrder[a.award||''] ?? 3) - (awardOrder[b.award||''] ?? 3));
+    items = items.slice(0, 6);
+    projWrap.innerHTML = items.map(p => `
+      <article class="card overlay-card">
+        <div class="img-wrap">
+          <img src="${esc(p.image||'https://placehold.co/640x360?text=Project')}" alt="${esc(p.name||'Project')}" />
+        </div>
+        <div class="info">
+          <h3>${esc(p.name||'')}</h3>
+          <p class="muted">${esc(p.creators||'')}</p>
+        </div>
+        <div class="overlay">
+          <h3>${esc(p.name||'')}</h3>
+          <p class="muted">${esc(p.creators||'')}</p>
+          <p>${esc(p.description||'')}</p>
+          <div class="row">
+            ${p.demo ? `<a class="chip sm" href="${esc(p.demo)}" target="_blank" rel="noopener">Demo</a>`:''}
+            ${p.code ? `<a class="chip sm" href="${esc(p.code)}" target="_blank" rel="noopener">Code</a>`:''}
+            ${p.award ? `<span class="badge ${esc(p.award)}">${esc((p.award||'').toUpperCase())}</span>`:''}
+          </div>
+        </div>
+      </article>
+    `).join('') || '<p class="muted">No projects yet.</p>';
+  }
+
+  // Sponsors sample + contact/socials
   if (document.getElementById('home-sponsors')){
-    const sponsors = d.sponsors.slice(0, 4);
+    const sponsors = (d.sponsors||[]).slice(0, 4);
     const sWrap = document.getElementById('home-sponsors');
     sWrap.innerHTML = sponsors.map(s=> `
       <article class="card sponsor hover-lift">
-        <img class="sponsor-logo" src="${window.UI.escape(s.image || '')}" alt="${window.UI.escape(s.name || '')}" />
-        <h3>${window.UI.escape(s.name || '')}</h3>
+        <img class="sponsor-logo" src="${esc(s.image || '')}" alt="${esc(s.name || '')}" />
+        <h3>${esc(s.name || '')}</h3>
       </article>
-    `).join('');
+    `).join('') || '<p class="muted">No sponsors yet.</p>';
   }
 
   if (document.getElementById('contact-cards')){
     const contactCards = document.getElementById('contact-cards');
     contactCards.innerHTML = `
-      <article class="card soft hover-lift"><h3>Email</h3><p>${window.UI.escape(d.settings.contact)}</p></article>
+      <article class="card soft hover-lift"><h3>Email</h3><p>${esc(d.settings.contact || d.settings.adminEmail || '')}</p></article>
       <article class="card soft hover-lift"><h3>Slack</h3><p><a href="https://hackclub.com/slack" target="_blank">Join</a></p></article>
       <article class="card soft hover-lift"><h3>GitHub</h3><p><a href="https://github.com/hackclub" target="_blank">Explore</a></p></article>
     `;
   }
 
-  // Counters
+  // Counters (participants = approved members)
   const counters = document.querySelectorAll('[data-counter]');
   if (counters.length){
     const stat = window.StorageAPI.stats();
@@ -94,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
       entries.forEach(en=>{
         if (en.isIntersecting){
           const el = en.target; const key = el.dataset.counter; const target = map[key]||0;
-          let cur=0; const step = Math.max(1, Math.round(target/60));
+          let cur=0; const step = Math.max(1, Math.round(Math.max(target,1)/60));
           const t = setInterval(()=>{ cur+=step; if(cur>=target){cur=target; clearInterval(t);} el.textContent = cur; }, 25);
           obs.unobserve(el);
         }
@@ -103,15 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
     counters.forEach(c=> obs.observe(c));
   }
 
-  // Footer
+  // Footer text values
   const fc = document.getElementById('footer-contact');
   const fs = document.getElementById('footer-socials');
-  if (fc) fc.textContent = d.settings.contact;
-  if (fs) fs.innerHTML = (d.settings.socials||[]).map(s=> `<a href="${window.UI.escape(s.url)}" target="_blank" title="${window.UI.escape(s.name)}">${s.name[0]}</a>`).join('');
-
-  // Donation link if present
-  const donateLink = document.getElementById('donate-link');
-  if (donateLink){
-    donateLink.href = (window.AppConfig?.payment?.donationLink) || window.StorageAPI.getData().settings.donationLink;
-  }
+  if (fc) fc.textContent = d.settings.contact || d.settings.adminEmail || '';
+  if (fs) fs.innerHTML = (d.settings.socials||[]).map(s=> `<a href="${esc(s.url)}" target="_blank" title="${esc(s.name)}">${esc(s.name[0]||'·')}</a>`).join('');
 });
