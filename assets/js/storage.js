@@ -1,4 +1,4 @@
-// LocalStorage-backed data and auth with detailed checks and fallbacks
+// LocalStorage data + auth + email outbox + CRUD helpers
 (function(){
   const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
@@ -9,7 +9,6 @@
       adminUser: 'admin@club.local',
       // SHA-256 of "hackclub123"
       adminPassHash: '2a0a6f0b5b7a314cf5e0f49c3ec6a2e3d52c2a8b66b9bb9c6a3b15f3d9a0a1a8',
-      // Plain fallback so login works without subtle crypto
       adminPassPlain: 'hackclub123',
       donationLink: 'https://donate.stripe.com/test_12345',
       socials: [
@@ -44,7 +43,11 @@
   function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,8)).toUpperCase(); }
   function clone(v){ return JSON.parse(JSON.stringify(v)); }
 
-  function setData(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
+  function setData(data){
+    localStorage.setItem(KEY, JSON.stringify(data));
+    // Notify same-tab listeners
+    window.dispatchEvent?.(new CustomEvent('clubDataUpdated', { detail: { key: KEY } }));
+  }
   function getData(){
     try{
       const raw = localStorage.getItem(KEY);
@@ -89,12 +92,11 @@
     addMember(member){
       const d = getData();
       const exists = d.members.some(m =>
-        m.email.toLowerCase() === (member.email||'').toLowerCase() ||
+        (m.email||'').toLowerCase() === (member.email||'').toLowerCase() ||
         (m.name||'').trim().toLowerCase() === (member.name||'').trim().toLowerCase() ||
         m.contact === member.contact
       );
       if (exists) return { ok:false, message:'Already registered' };
-      // New members start as pending; won't count in participants until approved
       d.members.push({ id: uid(), ...member, status:'pending' });
       setData(d);
       return { ok:true };
@@ -137,11 +139,14 @@
       setData(d);
     },
 
+    // information
     setInformationSection(section, html){
       const d = getData();
       d.information[section] = html;
       setData(d);
     },
+
+    // meeting recordings/messages/emails
     addRecording(url){
       const d = getData();
       d.meetingRecordings.push(url);
@@ -153,7 +158,6 @@
       setData(d);
     },
 
-    // emails (mock)
     emailOutbox(){ return getData().emails; },
     pushEmail(email){
       const d = getData();
@@ -199,4 +203,11 @@
       setData(d);
     }
   };
+
+  // Cross-tab: re-emit when other tab updates localStorage
+  window.addEventListener?.('storage', (e) => {
+    if (e.key === KEY) {
+      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', { detail: { key: KEY } }));
+    }
+  });
 })();
