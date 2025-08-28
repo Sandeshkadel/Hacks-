@@ -1,4 +1,4 @@
-// Full Admin Panel logic: authentication guard, stats, and CRUD for all sections
+// Full Admin Panel logic: authentication guard, stats, and CRUD for all sections with mail on member approve/decline
 document.addEventListener('DOMContentLoaded', () => {
   // Guard: require admin session
   try {
@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Short-hands and safe helpers
   const UI = window.UI || {
     escape: (s) => String(s ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c])),
     toast: (m) => alert(m),
@@ -35,16 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
     location.href = 'admin-login.html';
   });
 
-  // Stats: show approved members only
+  // Stats (approved members only)
   function refreshStats(){
-    const s = window.StorageAPI.stats(); // participants = approved
+    const s = window.StorageAPI.stats();
     const d = window.StorageAPI.getData();
-    const m = document.getElementById('stat-members');
-    if (m) m.textContent = s.participants;
-    const p = document.getElementById('stat-projects');
-    if (p) p.textContent = s.projects;
-    const h = document.getElementById('stat-hackathons');
-    if (h) h.textContent = (d.hackathons || []).length;
+    document.getElementById('stat-members')!.textContent = String(s.participants);
+    document.getElementById('stat-projects')!.textContent = String(s.projects);
+    document.getElementById('stat-hackathons')!.textContent = String((d.hackathons||[]).length);
   }
   refreshStats();
 
@@ -81,14 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
       window.StorageAPI.updateMember(approve, { status:'approved' });
       try {
         const m = window.StorageAPI.getData().members.find(x=>x.id===approve);
-        window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Approved', message:`Hi ${m.name}, you are approved!` });
+        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Approved', message:`Hi ${m.name}, you are approved!` });
       } catch {}
       UI.toast('Approved', 'success');
     } else if (decline){
       window.StorageAPI.updateMember(decline, { status:'declined' });
       try {
         const m = window.StorageAPI.getData().members.find(x=>x.id===decline);
-        window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Declined', message:`Hi ${m.name}, please re-apply later.` });
+        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Declined', message:`Hi ${m.name}, you are rejected, please start again.` });
       } catch {}
       UI.toast('Declined', 'success');
     } else if (del){
@@ -107,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   renderMembers();
 
-  // Export Members CSV (if button exists)
+  // Export Members CSV
   document.getElementById('export-members')?.addEventListener('click', ()=>{
     const rows = window.StorageAPI.getData().members || [];
     const header = ['id','name','email','contact','location','caste','status','message'];
@@ -122,11 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
     URL.revokeObjectURL(url);
   });
 
-  // Generic CRUD binder for simple list sections
+  // Generic CRUD helper
   function bindCrud(listName, formId, listId, renderCard, options={}){
     const form = document.getElementById(formId);
     const list = document.getElementById(listId);
-    if (!form || !list) return { render:()=>{}, list:null, form:null };
+    if (!form || !list) return { render:()=>{} };
     function render(){
       const items = window.StorageAPI.getData()[listName] || [];
       list.innerHTML = items.map(x => renderCard(x)).join('');
@@ -155,11 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     form.querySelector('[data-reset]')?.addEventListener('click', ()=> form.reset());
     if (options.sortable) UI.sortable(list, (ids)=> window.StorageAPI.reorder(listName, ids));
-    return { render, list, form };
+    return { render };
   }
 
   // Organizers
-  const organizers = bindCrud('organizers', 'form-organizer', 'organizers-list', (o)=> `
+  bindCrud('organizers', 'form-organizer', 'organizers-list', (o)=> `
     <article class="card hover-lift" data-id="${o.id}">
       <img src="${UI.escape(o.image||'https://placehold.co/160x160?text=?')}" alt="${UI.escape(o.name||'')}" style="width:100%; border-radius:10px"/>
       <h3>${UI.escape(o.name||'')}</h3>
@@ -169,11 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${o.id}">Delete</button>
       </div>
     </article>
-  `);
-  organizers.render?.();
+  `).render();
 
-  // Projects (with award + sortable)
-  const projects = bindCrud('projects', 'form-project', 'projects-list', (p)=> `
+  // Projects (sortable)
+  bindCrud('projects', 'form-project', 'projects-list', (p)=> `
     <article class="card hover-lift" draggable="true" data-id="${p.id}">
       <h3>${UI.escape(p.name||'')} ${p.award ? `<span class="badge ${UI.escape(p.award)}">${UI.escape((p.award||'').toUpperCase())}</span>`:''}</h3>
       <p class="muted">${UI.escape(p.creators||'')}</p>
@@ -182,11 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${p.id}">Delete</button>
       </div>
     </article>
-  `, { sortable:true });
-  projects.render?.();
+  `, { sortable:true }).render();
 
   // Hackathons
-  const hacks = bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h)=> `
+  bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h)=> `
     <article class="card hover-lift" data-id="${h.id}">
       <h3>${UI.escape(h.title||'')}</h3>
       <p class="muted">${UI.escape(h.date||'')}</p>
@@ -196,11 +190,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${h.id}">Delete</button>
       </div>
     </article>
-  `);
-  hacks.render?.();
+  `).render();
 
   // Gallery
-  const gallery = bindCrud('gallery', 'form-gallery', 'gallery-list', (g)=> `
+  bindCrud('gallery', 'form-gallery', 'gallery-list', (g)=> `
     <article class="card hover-lift" data-id="${g.id}">
       ${g.type==='video'
         ? `<div class="video-wrap"><video src="${UI.escape(g.src||'')}" controls></video></div>`
@@ -211,11 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${g.id}">Delete</button>
       </div>
     </article>
-  `);
-  gallery.render?.();
+  `).render();
 
   // Sponsors
-  const sponsors = bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s)=> `
+  bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s)=> `
     <article class="card hover-lift" data-id="${s.id}">
       <img class="sponsor-logo" src="${UI.escape(s.image||'')}" alt="${UI.escape(s.name||'')}" />
       <h3>${UI.escape(s.name||'')}</h3>
@@ -226,11 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${s.id}">Delete</button>
       </div>
     </article>
-  `);
-  sponsors.render?.();
+  `).render();
 
   // Donors
-  const donors = bindCrud('donors', 'form-donor', 'donors-list', (d)=> `
+  bindCrud('donors', 'form-donor', 'donors-list', (d)=> `
     <article class="card hover-lift" data-id="${d.id}">
       <h3>${UI.escape(d.name||'')}</h3>
       <p class="muted">${UI.escape(d.amount||'')}</p>
@@ -241,11 +232,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${d.id}">Delete</button>
       </div>
     </article>
-  `);
-  donors.render?.();
+  `).render();
 
   // Courses (sortable)
-  const courses = bindCrud('courses', 'form-course', 'courses-list', (c)=> `
+  bindCrud('courses', 'form-course', 'courses-list', (c)=> `
     <article class="card hover-lift" draggable="true" data-id="${c.id}">
       <h3>${UI.escape(c.title||'')}</h3>
       <p class="muted">${UI.escape(c.level||'')}</p>
@@ -254,10 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${c.id}">Delete</button>
       </div>
     </article>
-  `, { sortable:true });
-  courses.render?.();
+  `, { sortable:true }).render();
 
-  // Information: support both editor styles (simple whole-page editor or per-section form)
+  // Information per-section
   function renderInfoCards(){
     const info = window.StorageAPI.getData().information || {};
     const wrap = document.getElementById('info-sections');
@@ -268,53 +257,22 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="muted" style="max-height:140px; overflow:auto">${html}</div>
       </article>
     `).join('');
+    const prev = document.getElementById('info-preview');
+    if (prev) prev.innerHTML = Object.values(info).join('<hr/>');
   }
-  // Variant A: single textarea editor with live preview
-  const infoEditor = document.getElementById('info-editor');
-  const infoPreview = document.getElementById('info-preview');
-  const infoSave = document.getElementById('info-save');
-  const infoReset = document.getElementById('info-reset');
-  if (infoEditor && infoPreview){
-    const curInfo = window.StorageAPI.getData().information || {};
-    infoEditor.value = Object.values(curInfo).join('\n<hr/>\n');
-    infoPreview.innerHTML = infoEditor.value;
-    infoEditor.addEventListener('input', ()=> infoPreview.innerHTML = infoEditor.value);
-    infoSave?.addEventListener('click', ()=>{
-      // Save entire content into a single "html" bucket or overwrite "goals"
-      window.StorageAPI.setInformationSection('html', infoEditor.value);
-      UI.toast('Information saved', 'success');
-      renderInfoCards();
-    });
-    infoReset?.addEventListener('click', ()=>{
-      const d = window.StorageAPI.getData().information || {};
-      infoEditor.value = Object.values(d).join('\n<hr/>\n');
-      infoPreview.innerHTML = infoEditor.value;
-    });
-  }
-  // Variant B: per-section form
+  renderInfoCards();
   const infoForm = document.getElementById('form-info');
-  if (infoForm){
-    const preview = document.getElementById('info-preview');
-    function updatePreview(){
-      const info = window.StorageAPI.getData().information || {};
-      if (preview) preview.innerHTML = Object.values(info).join('<hr/>');
-      renderInfoCards();
-    }
-    infoForm.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const vals = Object.fromEntries(new FormData(infoForm).entries());
-      window.StorageAPI.setInformationSection(vals.section, vals.html || '');
-      UI.toast('Information saved', 'success');
-      infoForm.reset(); updatePreview();
-    });
-    infoForm.querySelector('[data-reset]')?.addEventListener('click', ()=> infoForm.reset());
-    updatePreview();
-  } else {
-    renderInfoCards();
-  }
+  infoForm?.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const vals = Object.fromEntries(new FormData(infoForm).entries());
+    window.StorageAPI.setInformationSection(vals.section, vals.html || '');
+    UI.toast('Information saved', 'success');
+    infoForm.reset(); renderInfoCards();
+  });
+  infoForm?.querySelector('[data-reset]')?.addEventListener('click', ()=> infoForm.reset());
 
   // Resources
-  const resources = bindCrud('resources', 'form-resource', 'resources-list', (r)=> `
+  bindCrud('resources', 'form-resource', 'resources-list', (r)=> `
     <article class="card hover-lift" data-id="${r.id}">
       <h3>${UI.escape(r.title||'')}</h3>
       <p>${UI.escape(r.description||'')}</p>
@@ -324,10 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="chip danger" data-del="${r.id}">Delete</button>
       </div>
     </article>
-  `);
-  resources.render?.();
+  `).render();
 
-  // Meetings: create Zoom link via ZoomAPI if left blank
+  // Meetings
   const meetingForm = document.getElementById('form-meeting');
   const meetingList = document.getElementById('meetings-list');
   function renderMeetings(){
@@ -351,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(meetingForm).entries());
     if (!data.id) delete data.id;
+    // Optionally create zoom link if blank and ZoomAPI present
     if (!data.zoomLink){
       try {
         const created = await window.ZoomAPI?.createMeeting?.({ topic: data.title, start_time: data.date });
@@ -376,23 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Settings
-  const settingsForm = document.getElementById('form-settings');
-  if (settingsForm){
-    const s = window.StorageAPI.getData().settings || {};
-    if (settingsForm.adminEmail) settingsForm.adminEmail.value = s.adminEmail || '';
-    if (settingsForm.username) settingsForm.username.value = s.adminUser || '';
-    if (settingsForm.donationLink) settingsForm.donationLink.value = s.donationLink || '';
-    settingsForm.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const vals = Object.fromEntries(new FormData(settingsForm).entries());
-      const upd = { adminEmail: vals.adminEmail, adminUser: vals.username, donationLink: vals.donationLink };
-      if (vals.password) { await window.StorageAPI.changePassword(vals.password); }
-      window.StorageAPI.saveSettings(upd);
-      UI.toast('Settings saved', 'success');
-    });
-  }
-
   // Emails outbox
   function renderEmails(){
     const list = window.StorageAPI.emailOutbox?.() || [];
@@ -412,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   renderEmails();
 
-  // Messages (contact form submissions)
+  // Messages (contact form)
   function renderMessages(){
     const list = (window.StorageAPI.getData().messages || []);
     const wrap = document.getElementById('messages-table');
