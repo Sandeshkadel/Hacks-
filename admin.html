@@ -1,374 +1,287 @@
-// Full Admin Panel logic: authentication guard, stats, and CRUD for all sections with mail on member approve/decline
-document.addEventListener('DOMContentLoaded', () => {
-  // Guard: require admin session
-  try {
-    if (!window.StorageAPI?.isAuthed()) {
-      try { window.UI?.toast?.('Please login', 'error'); } catch {}
-      location.href = 'admin-login.html';
-      return;
-    }
-  } catch {
-    location.href = 'admin-login.html';
-    return;
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hack Club — Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/admin.css" />
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/email.js"></script>
+  <script defer src="assets/js/admin.js"></script>
+</head>
+<body class="theme-gradient admin-shell">
+  <header class="admin-topbar">
+    <div class="container admin-topbar-inner">
+      <div class="brand-row">
+        <img src="assets/img/logo.svg" alt="Hack Club" />
+        <strong>Admin</strong>
+      </div>
+      <div class="spacer"></div>
+      <button id="logout" class="chip danger">Logout</button>
+    </div>
+  </header>
 
-  const UI = window.UI || {
-    escape: (s) => String(s ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c])),
-    toast: (m) => alert(m),
-    sortable: () => {}
-  };
+  <main class="admin-main">
+    <aside class="admin-sidebar">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="members">Members</button>
+      <button data-tab="organizers">Organizers</button>
+      <button data-tab="projects">Projects</button>
+      <button data-tab="hackathons">Hackathons</button>
+      <button data-tab="gallery">Gallery</button>
+      <button data-tab="sponsors">Sponsors</button>
+      <button data-tab="donors">Donors</button>
+      <button data-tab="courses">Courses</button>
+      <button data-tab="resources">Resources</button>
+      <button data-tab="information">Information</button>
+      <button data-tab="meetings">Meetings</button>
+      <button data-tab="messages">Messages</button>
+      <button data-tab="emails">Emails</button>
+      <button data-tab="settings">Settings</button>
+    </aside>
 
-  // Tabs
-  const buttons = document.querySelectorAll('.admin-sidebar button');
-  const tabs = document.querySelectorAll('.tab');
-  buttons.forEach(btn => btn.addEventListener('click', ()=>{
-    buttons.forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const id = 'tab-' + btn.dataset.tab;
-    tabs.forEach(t=> t.classList.toggle('hidden', t.id !== id));
-  }));
+    <section class="admin-content">
+      <!-- Dashboard -->
+      <div class="tab" id="tab-dashboard">
+        <h2>Overview</h2>
+        <div class="cards three">
+          <div class="card soft"><h3 id="stat-members">0</h3><p>Approved Members</p></div>
+          <div class="card soft"><h3 id="stat-projects">0</h3><p>Projects</p></div>
+          <div class="card soft"><h3 id="stat-hackathons">0</h3><p>Hackathons</p></div>
+        </div>
+      </div>
 
-  // Logout
-  document.getElementById('logout')?.addEventListener('click', ()=>{
-    window.StorageAPI.logout();
-    location.href = 'admin-login.html';
-  });
+      <!-- Members -->
+      <div class="tab hidden" id="tab-members">
+        <div class="row" style="justify-content:space-between; align-items:center">
+          <h2>Members</h2>
+          <button id="export-members" class="chip">Download CSV</button>
+        </div>
+        <div class="table" id="members-table"></div>
+      </div>
 
-  // Stats (approved members only)
-  function refreshStats(){
-    const s = window.StorageAPI.stats();
-    const d = window.StorageAPI.getData();
-    document.getElementById('stat-members')!.textContent = String(s.participants);
-    document.getElementById('stat-projects')!.textContent = String(s.projects);
-    document.getElementById('stat-hackathons')!.textContent = String((d.hackathons||[]).length);
-  }
-  refreshStats();
+      <!-- Organizers -->
+      <div class="tab hidden" id="tab-organizers">
+        <h2>Organizers</h2>
+        <form id="form-organizer" class="form row">
+          <input name="id" type="hidden" />
+          <input name="name" placeholder="Name" required />
+          <input name="role" placeholder="Role" />
+          <input name="image" placeholder="Image URL" />
+          <input name="socials" placeholder="Social links (comma-separated URLs)" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="organizers-list" class="cards three"></div>
+      </div>
 
-  // Members
-  const membersTable = document.getElementById('members-table');
-  function renderMembers(){
-    if (!membersTable) return;
-    const data = window.StorageAPI.getData().members || [];
-    membersTable.innerHTML = `
-      <div class="row header"><div>Name</div><div>Email</div><div>Contact</div><div>Location</div><div>Status</div><div class="actions">Actions</div></div>
-      ${data.map(m => `
-        <div class="row">
-          <div>${UI.escape(m.name||'')}</div>
-          <div>${UI.escape(m.email||'')}</div>
-          <div>${UI.escape(m.contact||'')}</div>
-          <div>${UI.escape(m.location||'')}</div>
-          <div>${UI.escape(m.status||'pending')}</div>
-          <div class="actions">
-            ${m.status!=='approved' ? `<button class="chip" data-approve="${m.id}">Approve</button>`:''}
-            ${m.status!=='declined' ? `<button class="chip danger" data-decline="${m.id}">Decline</button>`:''}
-            <button class="chip" data-edit="${m.id}">Edit</button>
-            <button class="chip danger" data-delete="${m.id}">Delete</button>
+      <!-- Projects -->
+      <div class="tab hidden" id="tab-projects">
+        <h2>Projects</h2>
+        <form id="form-project" class="form row">
+          <input name="id" type="hidden" />
+          <input name="name" placeholder="Project name" required />
+          <input name="creators" placeholder="Maker name(s)" />
+          <input name="makerSocials" placeholder="Maker socials (comma-separated URLs)" />
+          <input name="image" placeholder="Cover image URL" />
+          <input name="demo" placeholder="Demo URL" />
+          <input name="code" placeholder="Code URL" />
+          <input name="description" placeholder="Short info/description" />
+          <select name="award">
+            <option value="">Award (none)</option>
+            <option value="week">Best of Week</option>
+            <option value="month">Best of Month</option>
+            <option value="year">Best of Year</option>
+          </select>
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="projects-list" class="cards three sortable"></div>
+      </div>
+
+      <!-- Hackathons -->
+      <div class="tab hidden" id="tab-hackathons">
+        <h2>Hackathons</h2>
+        <form id="form-hackathon" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <input name="date" placeholder="Date (e.g., 2025-10-01 17:00)" />
+          <input name="website" placeholder="Website/Link (optional)" />
+          <input name="cover" placeholder="Cover image URL (optional)" />
+          <input name="description" placeholder="Description" />
+          <input name="prizes" placeholder="Prizes (comma-separated)" />
+          <input name="participants" placeholder="Participants (comma-separated)" />
+          <input name="winners" placeholder="Winners (comma-separated)" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="hackathons-list" class="cards two"></div>
+      </div>
+
+      <!-- Gallery -->
+      <div class="tab hidden" id="tab-gallery">
+        <h2>Gallery</h2>
+        <form id="form-gallery" class="form row">
+          <input name="id" type="hidden" />
+          <select name="type" required>
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+          </select>
+          <input name="src" placeholder="Media URL (image/video)" required />
+          <input name="link" placeholder="Related link (optional)" />
+          <input name="event" placeholder="Event name (optional)" />
+          <input name="date" placeholder="Date (optional)" />
+          <input name="description" placeholder="Info/Description (optional)" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="gallery-list" class="cards three"></div>
+      </div>
+
+      <!-- Sponsors -->
+      <div class="tab hidden" id="tab-sponsors">
+        <h2>Sponsors</h2>
+        <form id="form-sponsor" class="form row">
+          <input name="id" type="hidden" />
+          <input name="name" placeholder="Name" required />
+          <input name="image" placeholder="Image URL" />
+          <input name="link" placeholder="Website" />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="sponsors-list" class="cards three"></div>
+      </div>
+
+      <!-- Donors -->
+      <div class="tab hidden" id="tab-donors">
+        <h2>Donors</h2>
+        <form id="form-donor" class="form row">
+          <input name="id" type="hidden" />
+          <input name="name" placeholder="Name" required />
+          <input name="amount" placeholder="Amount" />
+          <input name="link" placeholder="Website/Link" />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="donors-list" class="cards three"></div>
+      </div>
+
+      <!-- Courses -->
+      <div class="tab hidden" id="tab-courses">
+        <h2>Courses & Videos</h2>
+        <form id="form-course" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <select name="level">
+            <option value="beginner">beginner</option>
+            <option value="intermediate">intermediate</option>
+            <option value="advanced">advanced</option>
+          </select>
+          <input name="url" placeholder="Video URL (optional)" />
+          <textarea name="embed" placeholder="Embed HTML (optional)"></textarea>
+          <input name="thumb" placeholder="Thumbnail URL (optional)" />
+          <input name="description" placeholder="Short description (optional)" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="courses-list" class="cards three sortable"></div>
+      </div>
+
+      <!-- Resources -->
+      <div class="tab hidden" id="tab-resources">
+        <h2>Resources</h2>
+        <form id="form-resource" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <input name="url" placeholder="Link" required />
+          <input name="description" placeholder="Description" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="resources-list" class="cards three"></div>
+      </div>
+
+      <!-- Information -->
+      <div class="tab hidden" id="tab-information">
+        <h2>Information</h2>
+        <form id="form-info" class="form">
+          <label>Section key (existing or new, e.g. goals, motto, what_is_hackclub)
+            <input name="section" placeholder="section key" required />
+          </label>
+          <label>HTML content
+            <textarea name="html" placeholder="HTML content" rows="8" class="mono"></textarea>
+          </label>
+          <div class="row">
+            <button class="btn btn-primary" type="submit">Save Section</button>
+            <button class="btn" type="button" data-reset>Reset</button>
+          </div>
+        </form>
+        <div class="grid-2" style="margin-top:16px">
+          <div>
+            <h3>Current Sections</h3>
+            <div id="info-sections" class="cards three"></div>
+          </div>
+          <div>
+            <h3>Live Preview</h3>
+            <article id="info-preview" class="card soft"></article>
           </div>
         </div>
-      `).join('')}
-    `;
-  }
-  membersTable?.addEventListener('click', async (e)=>{
-    const approve = e.target.closest?.('[data-approve]')?.dataset.approve;
-    const decline = e.target.closest?.('[data-decline]')?.dataset.decline;
-    const del = e.target.closest?.('[data-delete]')?.dataset.delete;
-    const edit = e.target.closest?.('[data-edit]')?.dataset.edit;
-    if (approve){
-      window.StorageAPI.updateMember(approve, { status:'approved' });
-      try {
-        const m = window.StorageAPI.getData().members.find(x=>x.id===approve);
-        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Approved', message:`Hi ${m.name}, you are approved!` });
-      } catch {}
-      UI.toast('Approved', 'success');
-    } else if (decline){
-      window.StorageAPI.updateMember(decline, { status:'declined' });
-      try {
-        const m = window.StorageAPI.getData().members.find(x=>x.id===decline);
-        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Declined', message:`Hi ${m.name}, you are rejected, please start again.` });
-      } catch {}
-      UI.toast('Declined', 'success');
-    } else if (del){
-      window.StorageAPI.deleteMember(del);
-      UI.toast('Deleted', 'success');
-    } else if (edit){
-      const m = window.StorageAPI.getData().members.find(x=>x.id===edit);
-      const name = prompt('Name', m?.name ?? ''); if (name==null) return;
-      const email = prompt('Email', m?.email ?? ''); if (email==null) return;
-      const contact = prompt('Contact', m?.contact ?? ''); if (contact==null) return;
-      const location = prompt('Location', m?.location ?? ''); if (location==null) return;
-      window.StorageAPI.updateMember(edit, { name, email, contact, location });
-      UI.toast('Updated', 'success');
-    }
-    renderMembers(); refreshStats();
-  });
-  renderMembers();
-
-  // Export Members CSV
-  document.getElementById('export-members')?.addEventListener('click', ()=>{
-    const rows = window.StorageAPI.getData().members || [];
-    const header = ['id','name','email','contact','location','caste','status','message'];
-    const csv = [header.join(',')].concat(rows.map(r => header.map(h => {
-      const v = (r[h] ?? '').toString().replace(/\r?\n/g, ' ').replace(/"/g, '""');
-      return `"${v}"`;
-    }).join(','))).join('\n');
-    const blob = new Blob([csv], { type:'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'members.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  // Generic CRUD helper
-  function bindCrud(listName, formId, listId, renderCard, options={}){
-    const form = document.getElementById(formId);
-    const list = document.getElementById(listId);
-    if (!form || !list) return { render:()=>{} };
-    function render(){
-      const items = window.StorageAPI.getData()[listName] || [];
-      list.innerHTML = items.map(x => renderCard(x)).join('');
-    }
-    list.addEventListener('click', (e)=>{
-      const editId = e.target.closest?.('[data-edit]')?.dataset.edit;
-      const delId = e.target.closest?.('[data-del]')?.dataset.del;
-      if (editId){
-        const item = (window.StorageAPI.getData()[listName] || []).find(i=>i.id===editId);
-        if (!item) return;
-        [...form.elements].forEach(el => { if (el.name && item[el.name] != null) el.value = item[el.name]; });
-        form.scrollIntoView({ behavior:'smooth' });
-      } else if (delId){
-        window.StorageAPI.remove(listName, delId);
-        UI.toast('Deleted', 'success'); render(); refreshStats();
-      }
-    });
-    form.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(form).entries());
-      Object.keys(data).forEach(k => { if (data[k]==='') delete data[k]; });
-      if (!data.id) delete data.id;
-      window.StorageAPI.upsert(listName, data);
-      UI.toast('Saved', 'success');
-      form.reset(); render(); refreshStats();
-    });
-    form.querySelector('[data-reset]')?.addEventListener('click', ()=> form.reset());
-    if (options.sortable) UI.sortable(list, (ids)=> window.StorageAPI.reorder(listName, ids));
-    return { render };
-  }
-
-  // Organizers
-  bindCrud('organizers', 'form-organizer', 'organizers-list', (o)=> `
-    <article class="card hover-lift" data-id="${o.id}">
-      <img src="${UI.escape(o.image||'https://placehold.co/160x160?text=?')}" alt="${UI.escape(o.name||'')}" style="width:100%; border-radius:10px"/>
-      <h3>${UI.escape(o.name||'')}</h3>
-      <p class="muted">${UI.escape(o.role||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${o.id}">Edit</button>
-        <button class="chip danger" data-del="${o.id}">Delete</button>
       </div>
-    </article>
-  `).render();
 
-  // Projects (sortable)
-  bindCrud('projects', 'form-project', 'projects-list', (p)=> `
-    <article class="card hover-lift" draggable="true" data-id="${p.id}">
-      <h3>${UI.escape(p.name||'')} ${p.award ? `<span class="badge ${UI.escape(p.award)}">${UI.escape((p.award||'').toUpperCase())}</span>`:''}</h3>
-      <p class="muted">${UI.escape(p.creators||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${p.id}">Edit</button>
-        <button class="chip danger" data-del="${p.id}">Delete</button>
+      <!-- Meetings -->
+      <div class="tab hidden" id="tab-meetings">
+        <h2>Meetings</h2>
+        <form id="form-meeting" class="form row">
+          <input name="id" type="hidden" />
+          <input name="title" placeholder="Title" required />
+          <input name="date" placeholder="Date" />
+          <input name="description" placeholder="Description" />
+          <input name="zoomLink" placeholder="Zoom Link (optional)" />
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+        </form>
+        <div id="meetings-list" class="cards two"></div>
       </div>
-    </article>
-  `, { sortable:true }).render();
 
-  // Hackathons
-  bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h)=> `
-    <article class="card hover-lift" data-id="${h.id}">
-      <h3>${UI.escape(h.title||'')}</h3>
-      <p class="muted">${UI.escape(h.date||'')}</p>
-      <p>${UI.escape(h.description||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${h.id}">Edit</button>
-        <button class="chip danger" data-del="${h.id}">Delete</button>
+      <!-- Messages -->
+      <div class="tab hidden" id="tab-messages">
+        <h2>Messages (from Contact)</h2>
+        <div id="messages-table" class="table"></div>
       </div>
-    </article>
-  `).render();
 
-  // Gallery
-  bindCrud('gallery', 'form-gallery', 'gallery-list', (g)=> `
-    <article class="card hover-lift" data-id="${g.id}">
-      ${g.type==='video'
-        ? `<div class="video-wrap"><video src="${UI.escape(g.src||'')}" controls></video></div>`
-        : `<img src="${UI.escape(g.src||'')}" alt="${UI.escape(g.description||'')}" />`}
-      <p>${UI.escape(g.description||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${g.id}">Edit</button>
-        <button class="chip danger" data-del="${g.id}">Delete</button>
+      <!-- Emails -->
+      <div class="tab hidden" id="tab-emails">
+        <h2>Emails Outbox (Mock)</h2>
+        <div id="emails-list" class="table"></div>
       </div>
-    </article>
-  `).render();
 
-  // Sponsors
-  bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s)=> `
-    <article class="card hover-lift" data-id="${s.id}">
-      <img class="sponsor-logo" src="${UI.escape(s.image||'')}" alt="${UI.escape(s.name||'')}" />
-      <h3>${UI.escape(s.name||'')}</h3>
-      <p>${UI.escape(s.description||'')}</p>
-      ${s.link ? `<a class="chip" href="${UI.escape(s.link)}" target="_blank">Visit</a>`:''}
-      <div class="row">
-        <button class="chip" data-edit="${s.id}">Edit</button>
-        <button class="chip danger" data-del="${s.id}">Delete</button>
+      <!-- Settings -->
+      <div class="tab hidden" id="tab-settings">
+        <h2>Settings</h2>
+        <form id="form-settings" class="form">
+          <label>Club Email (receives contact forms)
+            <input name="adminEmail" type="email" required />
+          </label>
+          <label>Admin Username (email)
+            <input name="username" type="email" required />
+          </label>
+          <label>Admin Password (leave blank to keep)
+            <input name="password" type="password" />
+          </label>
+          <label>Donation Link (Stripe/PayPal)
+            <input name="donationLink" type="url" />
+          </label>
+          <button class="btn btn-primary" type="submit">Save Settings</button>
+        </form>
       </div>
-    </article>
-  `).render();
+    </section>
+  </main>
 
-  // Donors
-  bindCrud('donors', 'form-donor', 'donors-list', (d)=> `
-    <article class="card hover-lift" data-id="${d.id}">
-      <h3>${UI.escape(d.name||'')}</h3>
-      <p class="muted">${UI.escape(d.amount||'')}</p>
-      <p>${UI.escape(d.description||'')}</p>
-      ${d.link ? `<a class="chip" href="${UI.escape(d.link)}" target="_blank">Link</a>`:''}
-      <div class="row">
-        <button class="chip" data-edit="${d.id}">Edit</button>
-        <button class="chip danger" data-del="${d.id}">Delete</button>
-      </div>
-    </article>
-  `).render();
-
-  // Courses (sortable)
-  bindCrud('courses', 'form-course', 'courses-list', (c)=> `
-    <article class="card hover-lift" draggable="true" data-id="${c.id}">
-      <h3>${UI.escape(c.title||'')}</h3>
-      <p class="muted">${UI.escape(c.level||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${c.id}">Edit</button>
-        <button class="chip danger" data-del="${c.id}">Delete</button>
-      </div>
-    </article>
-  `, { sortable:true }).render();
-
-  // Information per-section
-  function renderInfoCards(){
-    const info = window.StorageAPI.getData().information || {};
-    const wrap = document.getElementById('info-sections');
-    if (!wrap) return;
-    wrap.innerHTML = Object.entries(info).map(([key, html]) => `
-      <article class="card soft">
-        <h4>${UI.escape(key.replaceAll('_',' '))}</h4>
-        <div class="muted" style="max-height:140px; overflow:auto">${html}</div>
-      </article>
-    `).join('');
-    const prev = document.getElementById('info-preview');
-    if (prev) prev.innerHTML = Object.values(info).join('<hr/>');
-  }
-  renderInfoCards();
-  const infoForm = document.getElementById('form-info');
-  infoForm?.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const vals = Object.fromEntries(new FormData(infoForm).entries());
-    window.StorageAPI.setInformationSection(vals.section, vals.html || '');
-    UI.toast('Information saved', 'success');
-    infoForm.reset(); renderInfoCards();
-  });
-  infoForm?.querySelector('[data-reset]')?.addEventListener('click', ()=> infoForm.reset());
-
-  // Resources
-  bindCrud('resources', 'form-resource', 'resources-list', (r)=> `
-    <article class="card hover-lift" data-id="${r.id}">
-      <h3>${UI.escape(r.title||'')}</h3>
-      <p>${UI.escape(r.description||'')}</p>
-      <a class="chip" href="${UI.escape(r.url||'#')}" target="_blank">Open</a>
-      <div class="row">
-        <button class="chip" data-edit="${r.id}">Edit</button>
-        <button class="chip danger" data-del="${r.id}">Delete</button>
-      </div>
-    </article>
-  `).render();
-
-  // Meetings
-  const meetingForm = document.getElementById('form-meeting');
-  const meetingList = document.getElementById('meetings-list');
-  function renderMeetings(){
-    if (!meetingList) return;
-    const items = window.StorageAPI.getData().meetings || [];
-    meetingList.innerHTML = items.map(m => `
-      <article class="card hover-lift" data-id="${m.id}">
-        <h3>${UI.escape(m.title||'')}</h3>
-        <p class="muted">${UI.escape(m.date||'')}</p>
-        <p>${UI.escape(m.description||'')}</p>
-        ${m.zoomLink ? `<a class="chip" href="${UI.escape(m.zoomLink)}" target="_blank">Zoom</a>`:''}
-        <div class="row">
-          <button class="chip" data-edit="${m.id}">Edit</button>
-          <button class="chip danger" data-del="${m.id}">Delete</button>
-        </div>
-      </article>
-    `).join('');
-  }
-  renderMeetings();
-  meetingForm?.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(meetingForm).entries());
-    if (!data.id) delete data.id;
-    // Optionally create zoom link if blank and ZoomAPI present
-    if (!data.zoomLink){
-      try {
-        const created = await window.ZoomAPI?.createMeeting?.({ topic: data.title, start_time: data.date });
-        if (created?.join_url) data.zoomLink = created.join_url;
-      } catch {}
-    }
-    window.StorageAPI.upsert('meetings', data);
-    UI.toast('Saved meeting', 'success');
-    meetingForm.reset(); renderMeetings();
-  });
-  meetingList?.addEventListener('click', (e)=>{
-    const editId = e.target.closest?.('[data-edit]')?.dataset.edit;
-    const delId = e.target.closest?.('[data-del]')?.dataset.del;
-    if (editId){
-      const m = (window.StorageAPI.getData().meetings||[]).find(x=>x.id===editId);
-      if (!m) return;
-      [...meetingForm.elements].forEach(el => { if (el.name && m[el.name] != null) el.value = m[el.name]; });
-      meetingForm.scrollIntoView({ behavior:'smooth' });
-    } else if (delId){
-      window.StorageAPI.remove('meetings', delId);
-      UI.toast('Deleted meeting', 'success');
-      renderMeetings();
-    }
-  });
-
-  // Emails outbox
-  function renderEmails(){
-    const list = window.StorageAPI.emailOutbox?.() || [];
-    const wrap = document.getElementById('emails-list');
-    if (!wrap) return;
-    wrap.innerHTML = `
-      <div class="row header"><div>Date</div><div>To</div><div>Subject</div><div style="grid-column: span 3">Message</div></div>
-      ${list.map(e => `
-        <div class="row">
-          <div>${new Date(e.date).toLocaleString()}</div>
-          <div>${UI.escape(e.to||'')}</div>
-          <div>${UI.escape(e.subject||'')}</div>
-          <div style="grid-column: span 3">${UI.escape(e.message||'')}</div>
-        </div>
-      `).join('')}
-    `;
-  }
-  renderEmails();
-
-  // Messages (contact form)
-  function renderMessages(){
-    const list = (window.StorageAPI.getData().messages || []);
-    const wrap = document.getElementById('messages-table');
-    if (!wrap) return;
-    wrap.innerHTML = `
-      <div class="row header"><div>Date</div><div>Name</div><div>Email</div><div style="grid-column: span 3">Message</div></div>
-      ${list.map(m => `
-        <div class="row">
-          <div>${new Date(m.date).toLocaleString()}</div>
-          <div>${UI.escape(m.name||'')}</div>
-          <div>${UI.escape(m.email||'')}</div>
-          <div style="grid-column: span 3">${UI.escape(m.message||'')}</div>
-        </div>
-      `).join('')}
-    `;
-  }
-  renderMessages();
-});
+  <div id="toast" class="toast"></div>
+</body>
+</html>
