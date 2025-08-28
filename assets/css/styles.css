@@ -115,7 +115,7 @@ img{max-width:100%; display:block}
 }
 .overlay-card:hover .overlay{opacity:1}
 
-/* Compact (smaller) project cards on home */
+/* Compact (smaller) project cards on home) */
 #home-projects.cards.compact{gap:14px}
 #home-projects.cards.compact .overlay-card .img-wrap{aspect-ratio: 4 / 3}
 #home-projects.cards.compact .overlay-card .info{padding:10px 12px}
@@ -138,7 +138,12 @@ img{max-width:100%; display:block}
 /* Background canvas and splash */
 .bg-canvas{position:fixed; inset:0; z-index:-1; opacity:.5}
 
-.splash{position:fixed; inset:0; background: linear-gradient(180deg, #0e0f1e, #090a14); display:flex; align-items:center; justify-content:center; z-index:100}
+.splash{
+  position:fixed; inset:0; background: linear-gradient(180deg, #0e0f1e, #090a14);
+  display:flex; align-items:center; justify-content:center; z-index:100;
+  opacity: 1; transition: opacity .45s ease;
+}
+.splash.fadeout{ opacity: 0; }
 .splash-inner{display:flex; flex-direction:column; align-items:center; gap:16px; animation: fadeIn .6s ease both}
 .splash-logo{width:90px; height:90px; filter: drop-shadow(0 6px 16px rgba(0,229,255,.35))}
 .splash-title{font-size: clamp(28px, 5vw, 48px)}
