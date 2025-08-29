@@ -1,451 +1,272 @@
-// Admin Panel: uses StorageAPI (remote Firestore if configured) for permanent changes
-document.addEventListener('DOMContentLoaded', async () => {
-  if (!window.StorageAPI?.isAuthed?.() && window.AppConfig?.firebase?.apiKey){
-    try { window.UI?.toast?.('Please login', 'error'); } catch {}
-    location.href = 'admin-login.html'; return;
-  }
-
-  const UI = window.UI;
+// Admin wiring: renders tables, binds forms, sends emails on approve/decline, no page reloads.
+(function(){
   const S = window.StorageAPI;
-  const esc = (s) => UI.escape(s);
-  const parseCSV = (str='') => (str||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const nameFromUrl = (u='') => {
-    const x = u.toLowerCase();
-    if (x.includes('github')) return 'GitHub';
-    if (x.includes('linkedin')) return 'LinkedIn';
-    if (x.includes('twitter') || x.includes('x.com')) return 'Twitter';
-    if (x.includes('instagram')) return 'Instagram';
-    if (x.includes('facebook')) return 'Facebook';
-    if (x.includes('youtube')) return 'YouTube';
-    return 'Link';
-  };
-  const parseSocials = (str='') => parseCSV(str).map(url => ({ name: nameFromUrl(url), url }));
-  const stringifySocials = (arr=[]) => (arr||[]).map(s=>s.url).join(', ');
+  const U = window.UI;
 
-  const buttons = document.querySelectorAll('.admin-sidebar button');
-  const tabs = document.querySelectorAll('.tab');
-  function showTab(tab){ tabs.forEach(t=> t.classList.toggle('hidden', t.id !== ('tab-' + tab))); }
-  buttons.forEach(btn => btn.addEventListener('click', ()=>{
-    buttons.forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    showTab(btn.dataset.tab);
-  }));
-  showTab('dashboard');
+  function onDataUpdated(renderFn){ window.addEventListener('clubDataUpdated', renderFn); }
 
-  document.getElementById('logout')?.addEventListener('click', async ()=>{
-    await S.logout();
-    location.href = 'admin-login.html';
-  });
-
-  async function refreshStats(){
-    const d = await S.getData();
-    document.getElementById('stat-members').textContent = String((d.members||[]).filter(m=>m.status==='approved').length);
-    document.getElementById('stat-projects').textContent = String((d.projects||[]).length);
-    document.getElementById('stat-hackathons').textContent = String((d.hackathons||[]).length);
+  // Dashboard stats
+  async function renderStats(){
+    try {
+      const data = await S.getData();
+      const st = S.stats();
+      document.getElementById('stat-members').textContent = st.participants;
+      document.getElementById('stat-projects').textContent = st.projects;
+      document.getElementById('stat-hackathons').textContent = (data.hackathons||[]).length;
+    } catch {}
   }
 
-  // Members
-  const membersTable = document.getElementById('members-table');
-  async function renderMembers(){
-    const d = await S.getData();
-    const data = d.members || [];
-    membersTable.innerHTML = `
-      <div class="row header"><div>Name</div><div>Email</div><div>Contact</div><div>Location</div><div>Status</div><div class="actions">Actions</div></div>
-      ${data.map(m => `
-        <div class="row">
-          <div>${esc(m.name||'')}</div>
-          <div>${esc(m.email||'')}</div>
-          <div>${esc(m.contact||'')}</div>
-          <div>${esc(m.location||'')}</div>
-          <div>${esc(m.status||'pending')}</div>
-          <div class="actions">
-            ${m.status!=='approved' ? `<button class="chip" data-approve="${m.id}">Approve</button>`:''}
-            ${m.status!=='declined' ? `<button class="chip danger" data-decline="${m.id}">Decline</button>`:''}
-            <button class="chip" data-edit="${m.id}">Edit</button>
+  // Members table with Approve / Decline / Delete
+  function renderMembersTable(){
+    S.getData().then(d => {
+      const rows = (d.members||[]).map(m => `
+        <tr>
+          <td>${m.name || ''}</td>
+          <td>${m.email || ''}</td>
+          <td>${m.status || 'pending'}</td>
+          <td class="row">
+            <button class="chip success" data-approve="${m.id}">Approve</button>
+            <button class="chip warn" data-decline="${m.id}">Decline</button>
             <button class="chip danger" data-delete="${m.id}">Delete</button>
-          </div>
-        </div>
-      `).join('')}
-    `;
+          </td>
+        </tr>`).join('');
+      const html = `
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>${rows || ''}</tbody>
+        </table>`;
+      document.getElementById('members-table').innerHTML = html;
+    });
   }
-  membersTable.addEventListener('click', async (e)=>{
-    const approve = e.target.closest?.('[data-approve]')?.dataset.approve;
-    const decline = e.target.closest?.('[data-decline]')?.dataset.decline;
-    const del = e.target.closest?.('[data-delete]')?.dataset.delete;
-    const edit = e.target.closest?.('[data-edit]')?.dataset.edit;
-    if (approve){
-      await S.updateMember(approve, { status:'approved' });
-      try {
-        const d = await S.getData();
-        const m = d.members.find(x=>x.id===approve);
-        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Approved', message:`Hi ${m.name}, you are approved!` });
-      } catch {}
-      UI.toast('Approved', 'success');
-    } else if (decline){
-      await S.updateMember(decline, { status:'declined' });
-      try {
-        const d = await S.getData();
-        const m = d.members.find(x=>x.id===decline);
-        await window.EmailAPI?.send?.({ to: m.email, subject:'Hack Club: Declined', message:`Hi ${m.name}, you are rejected, please start again.` });
-      } catch {}
-      UI.toast('Declined', 'success');
-    } else if (del){
-      await S.deleteMember(del);
-      UI.toast('Deleted', 'success');
-    } else if (edit){
-      const d = await S.getData();
-      const m = d.members.find(x=>x.id===edit);
-      const name = prompt('Name', m?.name ?? ''); if (name==null) return;
-      const email = prompt('Email', m?.email ?? ''); if (email==null) return;
-      const contact = prompt('Contact', m?.contact ?? ''); if (contact==null) return;
-      const location = prompt('Location', m?.location ?? ''); if (location==null) return;
-      await S.updateMember(edit, { name, email, contact, location });
-      UI.toast('Updated', 'success');
+
+  // Action handlers for members
+  document.addEventListener('click', async (e) => {
+    const approveId = e.target?.getAttribute?.('data-approve');
+    const declineId = e.target?.getAttribute?.('data-decline');
+    const deleteId  = e.target?.getAttribute?.('data-delete');
+
+    if (approveId || declineId || deleteId){
+      e.preventDefault();
+      const data = await S.getData();
+      const getById = (id) => (data.members||[]).find(x=>x.id===id);
+
+      if (approveId){
+        const m = getById(approveId);
+        if (!m) return;
+        await S.updateMember(m.id, { status:'approved', approvedAt: Date.now() });
+        UI.toast('Member approved', 'success');
+        // Send email
+        if (m.email) {
+          const subject = 'Welcome to Hack Club!';
+          const html = `<p>Hi ${m.name||''},</p><p>Your registration has been approved. Welcome to the club!</p>`;
+          const r = await Emailer.sendEmail(m.email, subject, html, { to_name: m.name||'' });
+          UI.toast(r.sent ? 'Email sent' : 'Email queued', 'success');
+        }
+      }
+      if (declineId){
+        const m = getById(declineId);
+        if (!m) return;
+        await S.updateMember(m.id, { status:'declined', declinedAt: Date.now() });
+        UI.toast('Member declined', 'warn');
+        if (m.email) {
+          const subject = 'Your Hack Club registration';
+          const html = `<p>Hi ${m.name||''},</p><p>Thank you for applying. Unfortunately, your registration was not accepted at this time.</p>`;
+          const r = await Emailer.sendEmail(m.email, subject, html, { to_name: m.name||'' });
+          UI.toast(r.sent ? 'Email sent' : 'Email queued', 'success');
+        }
+      }
+      if (deleteId){
+        if (!confirm('Delete this member permanently?')) return;
+        await S.deleteMember(deleteId);
+        UI.toast('Member deleted', 'danger');
+      }
+      // Re-render without reloading
+      renderMembersTable();
+      renderStats();
     }
-    await renderMembers(); await refreshStats();
   });
 
-  // Export CSV
-  document.getElementById('export-members')?.addEventListener('click', async ()=>{
+  // Export CSV for members
+  document.getElementById('export-members')?.addEventListener('click', async () => {
     const d = await S.getData();
-    const rows = d.members || [];
-    const header = ['id','name','email','contact','location','status','message'];
-    const csv = [header.join(',')].concat(rows.map(r => header.map(h => {
-      const v = (r[h] ?? '').toString().replace(/\r?\n/g, ' ').replace(/"/g, '""');
-      return `"${v}"`;
-    }).join(','))).join('\n');
-    const blob = new Blob([csv], { type:'text/csv' });
-    const url = URL.createObjectURL(blob);
+    const rows = [['id','name','email','status','createdAt']];
+    (d.members||[]).forEach(m => rows.push([m.id, m.name||'', m.email||'', m.status||'', m.createdAt||'']));
+    const csv = rows.map(r => r.map(x => `"${String(x).replaceAll('"','""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
-    a.href = url; a.download = 'members.csv'; a.click();
-    URL.revokeObjectURL(url);
+    a.href = URL.createObjectURL(blob); a.download = 'members.csv'; a.click(); URL.revokeObjectURL(a.href);
   });
 
-  function bindCrud(listName, formId, listId, renderCard, { toForm, fromForm, sortable } = {}){
+  // Generic CRUD binders for collections
+  function bindFormAndList(collection, formId, listId, titleField, extraLabelFields=[]){
     const form = document.getElementById(formId);
-    const list = document.getElementById(listId);
-    async function render(){
+    const listEl = document.getElementById(listId);
+    if (!form || !listEl) return;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const obj = UI.formToObject(form);
+      try {
+        await S.upsert(collection, obj);
+        UI.toast('Saved', 'success');
+        UI.clearForm(form);
+      } catch (e) { console.error(e); UI.toast('Save failed', 'danger'); }
+    });
+    form.querySelector('[data-reset]')?.addEventListener('click', () => UI.clearForm(form));
+
+    async function renderList(){
       const d = await S.getData();
-      list.innerHTML = (d[listName]||[]).map(x => renderCard(x)).join('');
-      if (sortable) UI.sortable(list, async (ids)=> { await S.reorder(listName, ids); });
+      const arr = d[collection] || [];
+      listEl.innerHTML = arr.map(item => {
+        const title = item[titleField] || '(untitled)';
+        const subtitle = extraLabelFields.map(f=> item[f]).filter(Boolean).join(' • ');
+        return `<article class="card soft">
+          <h4>${title}</h4>
+          ${subtitle ? `<p class="muted">${subtitle}</p>`:''}
+          <div class="row">
+            <button class="chip" data-edit="${item.id}">Edit</button>
+            <button class="chip danger" data-remove="${item.id}">Delete</button>
+          </div>
+        </article>`;
+      }).join('');
     }
-    list.addEventListener('click', async (e)=>{
-      const editId = e.target.closest?.('[data-edit]')?.dataset.edit;
-      const delId = e.target.closest?.('[data-del]')?.dataset.del;
-      if (editId){
+
+    listEl.addEventListener('click', async (e) => {
+      const idEdit = e.target?.getAttribute?.('data-edit');
+      const idDel  = e.target?.getAttribute?.('data-remove');
+      if (idEdit){
         const d = await S.getData();
-        const item = (d[listName]||[]).find(i=>i.id===editId);
-        if (!item) return;
-        if (toForm) toForm(item, form);
-        else [...form.elements].forEach(el => { if (el.name && item[el.name] != null) el.value = item[el.name]; });
-        form.scrollIntoView({ behavior:'smooth' });
-      } else if (delId){
-        await S.remove(listName, delId);
-        UI.toast('Deleted', 'success'); await render(); await refreshStats();
+        const item = (d[collection]||[]).find(x=>x.id===idEdit);
+        if (item) UI.setForm(form, item);
+      }
+      if (idDel){
+        if (!confirm('Delete permanently?')) return;
+        await S.remove(collection, idDel);
+        UI.toast('Deleted', 'danger');
       }
     });
-    form.addEventListener('submit', async (e)=>{
+
+    onDataUpdated(renderList);
+    renderList();
+  }
+
+  // Bind all collections
+  bindFormAndList('organizers', 'form-organizer', 'organizers-list', 'name', ['role']);
+  bindFormAndList('projects', 'form-project', 'projects-list', 'name', ['creators']);
+  bindFormAndList('hackathons', 'form-hackathon', 'hackathons-list', 'title', ['date']);
+  bindFormAndList('gallery', 'form-gallery', 'gallery-list', 'type', ['event','date']);
+  bindFormAndList('sponsors', 'form-sponsor', 'sponsors-list', 'name');
+  bindFormAndList('donors', 'form-donor', 'donors-list', 'name', ['amount']);
+  bindFormAndList('courses', 'form-course', 'courses-list', 'title', ['level']);
+  bindFormAndList('resources', 'form-resource', 'resources-list', 'title', ['url']);
+  bindFormAndList('meetings', 'form-meeting', 'meetings-list', 'title', ['date']);
+
+  // Information sections special handling
+  (function bindInformation(){
+    const form = document.getElementById('form-info');
+    const listEl = document.getElementById('info-sections');
+    const preview = document.getElementById('info-preview');
+    if (!form || !listEl) return;
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      let data = Object.fromEntries(new FormData(form).entries());
-      if (fromForm) data = fromForm(data);
-      Object.keys(data).forEach(k => { if (data[k]==='') delete data[k]; });
-      if (!data.id) delete data.id;
-      await S.upsert(listName, data);
-      UI.toast('Saved', 'success');
-      form.reset(); await render(); await refreshStats();
+      const { section, html } = UI.formToObject(form);
+      if (!section) return;
+      try {
+        await S.setInformationSection(section, html || '');
+        UI.toast('Section saved', 'success');
+      } catch (e) { console.error(e); UI.toast('Save failed', 'danger'); }
     });
-    form.querySelector('[data-reset]')?.addEventListener('click', ()=> form.reset());
-    render();
-    return { render, form, list };
-  }
+    form.querySelector('[data-reset]')?.addEventListener('click', () => UI.clearForm(form));
 
-  bindCrud('organizers', 'form-organizer', 'organizers-list', (o)=> `
-    <article class="card hover-lift" data-id="${o.id}">
-      <img src="${esc(o.image||'https://placehold.co/320x200?text=?')}" alt="${esc(o.name||'')}" class="thumb"/>
-      <h3>${esc(o.name||'')}</h3>
-      <p class="muted">${esc(o.role||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${o.id}">Edit</button>
-        <button class="chip danger" data-del="${o.id}">Delete</button>
-      </div>
-    </article>
-  `, {
-    toForm: (item, f)=>{
-      f.id.value = item.id || '';
-      f.name.value = item.name || '';
-      f.role.value = item.role || '';
-      f.image.value = item.image || '';
-      f.socials.value = stringifySocials(item.socials || []);
-    },
-    fromForm: (v)=> ({ id: v.id || undefined, name: v.name, role: v.role || '', image: v.image || '', socials: parseSocials(v.socials || '') })
-  });
-
-  bindCrud('projects', 'form-project', 'projects-list', (p)=> `
-    <article class="card hover-lift" draggable="true" data-id="${p.id}">
-      <img src="${esc(p.image||'https://placehold.co/640x360?text=Project')}" alt="${esc(p.name||'')}" class="thumb" />
-      <h3>${esc(p.name||'')} ${p.award ? `<span class="badge ${esc(p.award)}">${esc((p.award||'').toUpperCase())}</span>`:''}</h3>
-      <p class="muted">${esc(p.creators||'')}</p>
-      <div class="row">
-        <button class="chip" data-edit="${p.id}">Edit</button>
-        <button class="chip danger" data-del="${p.id}">Delete</button>
-      </div>
-    </article>
-  `, {
-    sortable: true,
-    toForm: (i, f)=>{
-      f.id.value = i.id || '';
-      f.name.value = i.name || '';
-      f.creators.value = i.creators || '';
-      f.makerSocials.value = (i.makerSocials||[]).map(s=>s.url).join(', ');
-      f.image.value = i.image || '';
-      f.demo.value = i.demo || '';
-      f.code.value = i.code || '';
-      f.description.value = i.description || '';
-      f.award.value = i.award || '';
-    },
-    fromForm: (v)=> ({
-      id: v.id || undefined,
-      name: v.name, creators: v.creators || '',
-      makerSocials: parseSocials(v.makerSocials || ''),
-      image: v.image || '', demo: v.demo || '', code: v.code || '', description: v.description || '', award: v.award || ''
-    })
-  });
-
-  bindCrud('hackathons', 'form-hackathon', 'hackathons-list', (h)=> `
-    <article class="card hover-lift" data-id="${h.id}">
-      ${h.cover ? `<img src="${esc(h.cover)}" alt="${esc(h.title||'')}" class="thumb" />`:''}
-      <h3>${esc(h.title||'')}</h3>
-      <p class="muted">${esc(h.date||'')}</p>
-      <p>${esc(h.description||'')}</p>
-      <div class="row">
-        ${h.website ? `<a class="chip" target="_blank" href="${esc(h.website)}">Website</a>`:''}
-        <button class="chip" data-edit="${h.id}">Edit</button>
-        <button class="chip danger" data-del="${h.id}">Delete</button>
-      </div>
-    </article>
-  `, {
-    toForm: (i, f)=>{
-      f.id.value = i.id || '';
-      f.title.value = i.title || '';
-      f.date.value = i.date || '';
-      f.website.value = i.website || '';
-      f.cover.value = i.cover || '';
-      f.description.value = i.description || '';
-      f.prizes.value = (i.prizes||[]).join(', ');
-      f.participants.value = (i.participants||[]).join(', ');
-      f.winners.value = (i.winners||[]).join(', ');
-    },
-    fromForm: (v)=> ({
-      id: v.id || undefined,
-      title: v.title, date: v.date || '', website: v.website || '', cover: v.cover || '', description: v.description || '',
-      prizes: parseCSV(v.prizes || ''), participants: parseCSV(v.participants || ''), winners: parseCSV(v.winners || '')
-    })
-  });
-
-  bindCrud('gallery', 'form-gallery', 'gallery-list', (g)=> `
-    <article class="card hover-lift" data-id="${g.id}">
-      ${g.type==='video'
-        ? `<div class="video-wrap"><video src="${esc(g.src||'')}" controls></video></div>`
-        : `<img src="${esc(g.src||'')}" alt="${esc(g.description||'')}" />`}
-      <p><strong>${esc(g.event||'')}</strong> ${g.date ? `• <span class="muted">${esc(g.date)}</span>`:''}</p>
-      <p>${esc(g.description||'')}</p>
-      <div class="row">
-        ${g.link ? `<a class="chip" href="${esc(g.link)}" target="_blank">Link</a>`:''}
-        <button class="chip" data-edit="${g.id}">Edit</button>
-        <button class="chip danger" data-del="${g.id}">Delete</button>
-      </div>
-    </article>
-  `, {
-    toForm: (i, f)=>{
-      f.id.value = i.id || '';
-      f.type.value = i.type || 'image';
-      f.src.value = i.src || '';
-      f.link.value = i.link || '';
-      f.event.value = i.event || '';
-      f.date.value = i.date || '';
-      f.description.value = i.description || '';
-    },
-    fromForm: (v)=> ({
-      id: v.id || undefined,
-      type: v.type || 'image', src: v.src, link: v.link || '', event: v.event || '', date: v.date || '', description: v.description || ''
-    })
-  });
-
-  bindCrud('sponsors', 'form-sponsor', 'sponsors-list', (s)=> `
-    <article class="card hover-lift" data-id="${s.id}">
-      <img class="sponsor-logo" src="${esc(s.image||'')}" alt="${esc(s.name||'')}" />
-      <h3>${esc(s.name||'')}</h3>
-      <p>${esc(s.description||'')}</p>
-      <div class="row">
-        ${s.link ? `<a class="chip" href="${esc(s.link)}" target="_blank">Visit</a>`:''}
-        <button class="chip" data-edit="${s.id}">Edit</button>
-        <button class="chip danger" data-del="${s.id}">Delete</button>
-      </div>
-    </article>
-  `);
-
-  bindCrud('donors', 'form-donor', 'donors-list', (d)=> `
-    <article class="card hover-lift" data-id="${d.id}">
-      <h3>${esc(d.name||'')}</h3>
-      <p class="muted">${esc(d.amount||'')}</p>
-      <p>${esc(d.description||'')}</p>
-      ${d.link ? `<a class="chip" href="${esc(d.link)}" target="_blank">Link</a>`:''}
-      <div class="row">
-        <button class="chip" data-edit="${d.id}">Edit</button>
-        <button class="chip danger" data-del="${d.id}">Delete</button>
-      </div>
-    </article>
-  `);
-
-  bindCrud('courses', 'form-course', 'courses-list', (c)=> `
-    <article class="card hover-lift" draggable="true" data-id="${c.id}">
-      ${c.thumb ? `<img src="${esc(c.thumb)}" alt="${esc(c.title||'')}" class="thumb" />`:''}
-      <h3>${esc(c.title||'')}</h3>
-      <p class="muted">${esc(c.level||'')}</p>
-      <div class="row">
-        ${c.url ? `<a class="chip" href="${esc(c.url)}" target="_blank">Video</a>`:''}
-        <button class="chip" data-edit="${c.id}">Edit</button>
-        <button class="chip danger" data-del="${c.id}">Delete</button>
-      </div>
-    </article>
-  `, { sortable: true });
-
-  bindCrud('resources', 'form-resource', 'resources-list', (r)=> `
-    <article class="card hover-lift" data-id="${r.id}">
-      <h3>${esc(r.title||'')}</h3>
-      <p>${esc(r.description||'')}</p>
-      <a class="chip" href="${esc(r.url||'#')}" target="_blank">Open</a>
-      <div class="row">
-        <button class="chip" data-edit="${r.id}">Edit</button>
-        <button class="chip danger" data-del="${r.id}">Delete</button>
-      </div>
-    </article>
-  `);
-
-  async function renderInfo(){
-    const d = await S.getData();
-    const info = d.information || {};
-    const wrap = document.getElementById('info-sections');
-    wrap.innerHTML = Object.entries(info).map(([key, html]) => `
-      <article class="card soft">
-        <h4>${esc(key.replaceAll('_',' '))}</h4>
-        <div class="muted" style="max-height:140px; overflow:auto">${html}</div>
-      </article>
-    `).join('');
-    document.getElementById('info-preview').innerHTML = Object.values(info).join('<hr/>');
-  }
-  await renderMembers();
-  await refreshStats();
-  await renderInfo();
-
-  const infoForm = document.getElementById('form-info');
-  infoForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const vals = Object.fromEntries(new FormData(infoForm).entries());
-    await S.setInformationSection(vals.section, vals.html || '');
-    UI.toast('Information saved', 'success');
-    infoForm.reset(); await renderInfo();
-  });
-
-  // Meetings
-  const meetingForm = document.getElementById('form-meeting');
-  const meetingList = document.getElementById('meetings-list');
-  async function renderMeetings(){
-    const d = await S.getData();
-    const items = d.meetings || [];
-    meetingList.innerHTML = items.map(m => `
-      <article class="card hover-lift" data-id="${m.id}">
-        <h3>${esc(m.title||'')}</h3>
-        <p class="muted">${esc(m.date||'')}</p>
-        <p>${esc(m.description||'')}</p>
-        ${m.zoomLink ? `<a class="chip" href="${esc(m.zoomLink)}" target="_blank">Zoom</a>`:''}
-        <div class="row">
-          <button class="chip" data-edit="${m.id}">Edit</button>
-          <button class="chip danger" data-del="${m.id}">Delete</button>
-        </div>
-      </article>
-    `).join('');
-  }
-  await renderMeetings();
-  meetingForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(meetingForm).entries());
-    if (!data.id) delete data.id;
-    await S.upsert('meetings', data);
-    UI.toast('Saved meeting', 'success');
-    meetingForm.reset(); await renderMeetings();
-  });
-  meetingList.addEventListener('click', async (e)=>{
-    const editId = e.target.closest?.('[data-edit]')?.dataset.edit;
-    const delId = e.target.closest?.('[data-del]')?.dataset.del;
-    if (editId){
+    async function renderInfo(){
       const d = await S.getData();
-      const m = (d.meetings||[]).find(x=>x.id===editId);
-      [...meetingForm.elements].forEach(el => { if (el.name && m[el.name] != null) el.value = m[el.name]; });
-      meetingForm.scrollIntoView({ behavior:'smooth' });
-    } else if (delId){
-      await S.remove('meetings', delId);
-      UI.toast('Deleted meeting', 'success');
-      await renderMeetings();
+      const info = d.information || {};
+      listEl.innerHTML = Object.keys(info).sort().map(k => `
+        <article class="card soft">
+          <h4>${k}</h4>
+          <div class="row">
+            <button class="chip" data-edit-info="${k}">Edit</button>
+            <button class="chip danger" data-del-info="${k}">Clear</button>
+          </div>
+        </article>`).join('');
+      preview.innerHTML = Object.values(info).join('') || '<p class="muted">No content</p>';
     }
-  });
+    listEl.addEventListener('click', async (e) => {
+      const kEdit = e.target?.getAttribute?.('data-edit-info');
+      const kDel = e.target?.getAttribute?.('data-del-info');
+      const d = await S.getData();
+      if (kEdit){
+        UI.setForm(form, { section: kEdit, html: (d.information||{})[kEdit] || '' });
+      }
+      if (kDel){
+        if (!confirm('Clear this section content?')) return;
+        await S.setInformationSection(kDel, '');
+        UI.toast('Section cleared', 'danger');
+      }
+    });
+
+    onDataUpdated(renderInfo);
+    renderInfo();
+  })();
+
+  // Messages (read-only in this panel)
+  async function renderMessages(){
+    const d = await S.getData();
+    const rows = (d.messages||[]).map(m => `
+      <tr><td>${m.name||''}</td><td>${m.email||''}</td><td>${m.message||''}</td><td>${m.date||''}</td></tr>`).join('');
+    document.getElementById('messages-table').innerHTML = `
+      <table><thead><tr><th>Name</th><th>Email</th><th>Message</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
 
   // Emails outbox
   async function renderEmails(){
-    const list = await S.emailOutbox();
-    const wrap = document.getElementById('emails-list');
-    wrap.innerHTML = `
-      <div class="row header"><div>Date</div><div>To</div><div>Subject</div><div style="grid-column: span 3">Message</div></div>
-      ${list.map(e => `
-        <div class="row">
-          <div>${new Date(e.date).toLocaleString()}</div>
-          <div>${esc(e.to||'')}</div>
-          <div>${esc(e.subject||'')}</div>
-          <div style="grid-column: span 3">${esc(e.message||'')}</div>
-        </div>
-      `).join('')}
-    `;
+    try {
+      const emails = await S.emailOutbox();
+      const rows = (emails||[]).map(e => `
+        <tr><td>${e.to||''}</td><td>${e.subject||''}</td><td>${(e.status||'sent')}</td><td>${e.date||''}</td></tr>`).join('');
+      document.getElementById('emails-list').innerHTML = `
+        <table><thead><tr><th>To</th><th>Subject</th><th>Status</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } catch (e) {
+      console.error(e);
+    }
   }
-  await renderEmails();
-
-  // Messages
-  async function renderMessages(){
-    const d = await S.getData();
-    const list = (d.messages || []);
-    const wrap = document.getElementById('messages-table');
-    wrap.innerHTML = `
-      <div class="row header"><div>Date</div><div>Name</div><div>Email</div><div style="grid-column: span 3">Message</div></div>
-      ${list.map(m => `
-        <div class="row">
-          <div>${new Date(m.date).toLocaleString()}</div>
-          <div>${esc(m.name||'')}</div>
-          <div>${esc(m.email||'')}</div>
-          <div style="grid-column: span 3">${esc(m.message||'')}</div>
-        </div>
-      `).join('')}
-    `;
-  }
-  await renderMessages();
 
   // Settings
-  const settingsForm = document.getElementById('form-settings');
-  const s = await S.settings();
-  settingsForm.adminEmail.value = s.adminEmail || '';
-  settingsForm.username.value = s.adminUser || '';
-  settingsForm.donationLink.value = s.donationLink || '';
-  settingsForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const vals = Object.fromEntries(new FormData(settingsForm).entries());
-    const upd = { adminEmail: vals.adminEmail, adminUser: vals.username, donationLink: vals.donationLink, contact: vals.adminEmail };
-    if (vals.password) { await S.changePassword(vals.password); }
-    await S.saveSettings(upd);
-    UI.toast('Settings saved', 'success');
-  });
+  (function bindSettings(){
+    const form = document.getElementById('form-settings');
+    if (!form) return;
+    async function load(){
+      const s = await S.settings();
+      UI.setForm(form, {
+        adminEmail: s.adminEmail || '',
+        username: s.username || s.adminUser || '',
+        donationLink: s.donationLink || ''
+      });
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const vals = UI.formToObject(form);
+      const upd = { adminEmail: vals.adminEmail, username: vals.username, donationLink: vals.donationLink };
+      try {
+        await S.saveSettings(upd);
+        UI.toast('Settings saved', 'success');
+        if (vals.password) {
+          try { await S.changePassword(vals.password); UI.toast('Password changed', 'success'); }
+          catch (e){ UI.toast('Password change failed (need recent login)', 'warn'); }
+        }
+      } catch (e){ console.error(e); UI.toast('Save failed', 'danger'); }
+    });
+    load();
+  })();
 
-  window.addEventListener('clubDataUpdated', async ()=>{
-    await refreshStats();
-    await renderMembers();
-    await renderInfo();
-    await renderMeetings();
-  });
-});
+  // Initial renders
+  (async function init(){
+    await S.getData();
+    renderStats();
+    renderMembersTable();
+    renderMessages();
+    renderEmails();
+    onDataUpdated(() => { renderStats(); renderMembersTable(); renderMessages(); });
+  })();
+})();
