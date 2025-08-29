@@ -7,15 +7,23 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
-  <!-- Keep scripts in this order so data and UI helpers are ready for app rendering -->
+
+  <!-- Data and UI helpers -->
   <script defer src="assets/js/storage.js"></script>
   <script defer src="assets/js/config.js"></script>
+
+  <!-- Firebase (remote persistence) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
+
+  <!-- Remote Storage wrapper (overrides StorageAPI to Firestore if configured) -->
+  <script defer src="assets/js/storage.remote.js"></script>
+
   <script defer src="assets/js/ui.js"></script>
   <script defer src="assets/js/backgrounds/spider.js"></script>
   <script defer src="assets/js/app.js"></script>
 </head>
 <body class="theme-gradient">
-  <!-- Splash -->
   <div id="splash" class="splash" aria-hidden="true">
     <div class="splash-inner">
       <img src="assets/img/logo.svg" alt="Hack Club" class="splash-logo" />
@@ -24,10 +32,8 @@
     </div>
   </div>
 
-  <!-- Animated background -->
   <canvas id="bg-canvas" class="bg-canvas" aria-hidden="true"></canvas>
 
-  <!-- Navbar -->
   <header class="navbar">
     <div class="nav-inner">
       <a class="brand" href="https://hackclub.com" target="_blank" rel="noopener">
@@ -52,7 +58,6 @@
   </header>
 
   <main>
-    <!-- Hero -->
     <section class="hero section-pad">
       <div class="container hero-grid">
         <div class="hero-left">
@@ -72,28 +77,6 @@
       </div>
     </section>
 
-    <!-- About Hack Club -->
-    <section class="section-pad reveal-on-scroll">
-      <div class="container">
-        <h2 class="section-title">About Hack Club</h2>
-        <div class="cards three">
-          <a class="card hover-pop" href="https://hackclub.com" target="_blank" rel="noopener">
-            <h3>Official Site</h3>
-            <p>Discover Hack Club’s global student maker community.</p>
-          </a>
-          <a class="card hover-pop" href="https://github.com/hackclub" target="_blank" rel="noopener">
-            <h3>GitHub</h3>
-            <p>Open-source projects, tools, and resources.</p>
-          </a>
-          <a class="card hover-pop" href="https://hackclub.com/slack" target="_blank" rel="noopener">
-            <h3>Slack</h3>
-            <p>Join thousands of student hackers around the world.</p>
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- Our Club Info (pulls from Admin > Information) -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Our Club</h2>
@@ -101,7 +84,6 @@
       </div>
     </section>
 
-    <!-- Organizers (image, name, role; socials on hover) -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Organizers</h2>
@@ -109,7 +91,6 @@
       </div>
     </section>
 
-    <!-- Projects (compact small cards on home) -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Projects</h2>
@@ -120,7 +101,6 @@
       </div>
     </section>
 
-    <!-- Stats -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Stats</h2>
@@ -141,7 +121,6 @@
       </div>
     </section>
 
-    <!-- Sponsors -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Sponsors</h2>
@@ -152,7 +131,6 @@
       </div>
     </section>
 
-    <!-- Contact Info -->
     <section class="section-pad reveal-on-scroll">
       <div class="container">
         <h2 class="section-title">Contact</h2>
@@ -161,7 +139,6 @@
     </section>
   </main>
 
-  <!-- Custom TechCrafters Footer -->
   <footer style="background-color:#1a1a1a; color:#f0f0f0; padding:40px 20px; text-align:center; font-family:'Inter Tight', sans-serif;">
     <div style="max-width:1200px; margin:auto;">
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:20px; text-align:left;">
@@ -180,7 +157,7 @@
         </div>
         <div style="flex:1; min-width:250px;">
           <h3 style="margin-bottom:15px; font-size:18px;">Powered by Hack Club</h3>
-          <p>We are proud members of <a href="https://hackclub.com" target="_blank" style="color:#ff4b2b; text-decoration:none;">Hack Club</a>, a global network of young programmers and makers. Hack Club inspires and supports student-led tech communities worldwide.</p>
+          <p>We are proud members of <a href="https://hackclub.com" target="_blank" style="color:#ff4b2b; text-decoration:none;">Hack Club</a>, a global network of young programmers and makers.</p>
         </div>
         <div style="flex:1; min-width:200px;">
           <h3 style="margin-bottom:15px; font-size:18px;">Contact Us</h3>
@@ -189,7 +166,7 @@
         </div>
       </div>
       <hr style="margin:30px 0; border-color:#333;">
-      <p style="font-size:14px;">&copy; 2025 TechCrafters. All rights reserved. | Made with ❤️ by Sandesh Kadel</p>
+      <p style="font-size:14px;">&copy; 2025 TechCrafters. All rights reserved.</p>
     </div>
   </footer>
 
