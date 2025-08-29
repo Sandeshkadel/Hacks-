@@ -1,4 +1,4 @@
-// Saves registration to Firestore with Nepal phone validation and emails the applicant.
+// Saves registration (with Nepal phone, multi-select interests, optional resume URL) and emails applicant.
 (function(){
   const S = window.StorageAPI;
 
@@ -16,19 +16,26 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = Object.fromEntries(new FormData(form).entries());
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      const interestsSel = Array.from(form.querySelector('select[name="interests"]').selectedOptions || []).map(o=>o.value);
+      const interests = interestsSel.join(', ');
+
       if (!data?.name || !data?.email) return setMsg(msg, 'Please enter your name and email', 'error');
       if (!isNepalPhone(data.phone)) return setMsg(msg, 'Please enter a valid Nepal phone number', 'error');
+      if (!interestsSel.length) return setMsg(msg, 'Please select at least one interest', 'error');
 
       try {
         btn.disabled = true; btn.textContent = 'Submitting…';
         await S.addMember({
           name: data.name.trim(),
           email: data.email.trim(),
-          phone: data.phone.trim(),
-          interests: data.interests || '',
+          phone: (data.phone||'').trim(),
+          interests,
           skills: data.skills || '',
-          status: 'pending'
+          resumeUrl: data.resumeUrl || '',
+          status: 'pending',
+          createdAt: Date.now()
         });
         setMsg(msg, 'Thanks for registering! We will inform you later via email.', 'success');
         form.reset();
