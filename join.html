@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <!-- Local fallback + config -->
-  <script defer src="assets/js/storage.js?v=10"></script>
-  <script defer src="assets/js/config.js?v=10"></script>
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
@@ -16,9 +16,16 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
   <!-- Remote Storage wrapper + Email -->
-  <script defer src="assets/js/storage.remote.js?v=10"></script>
-  <script defer src="assets/js/email.js?v=10"></script>
-  <script defer src="assets/js/join.js?v=10"></script>
+  <script defer src="assets/js/storage.remote.js"></script>
+  <script defer src="assets/js/email.js"></script>
+  <script defer src="assets/js/join.js"></script>
+
+  <style>
+    /* Simple "animated" dropdown feel */
+    .select-animated { transition: box-shadow .2s, transform .08s; }
+    .select-animated:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, .35); transform: translateY(-1px); }
+    .muted-note { font-size: 12px; color: #aaa; margin-top: 4px; }
+  </style>
 </head>
 <body class="theme-gradient">
   <main class="section-pad">
@@ -38,10 +45,24 @@
                  title="Use +977 98XXXXXXXX, 98XXXXXXXX, or 0 98XXXXXXXX" />
         </label>
         <label>Interests
-          <input name="interests" placeholder="e.g., web, AI, hardware" />
+          <select name="interests" class="select-animated" multiple required>
+            <option>Web Development</option>
+            <option>Mobile Apps</option>
+            <option>AI / Machine Learning</option>
+            <option>Robotics</option>
+            <option>Game Development</option>
+            <option>UI / UX</option>
+            <option>Open Source</option>
+            <option>Competitive Programming</option>
+            <option>Hardware / IoT</option>
+          </select>
+          <div class="muted-note">Select one or more (Ctrl/Cmd + click)</div>
         </label>
         <label>Your Skills / About You
           <textarea name="skills" rows="4" placeholder="Tell us about your skills"></textarea>
+        </label>
+        <label>Resume URL (optional)
+          <input name="resumeUrl" type="url" placeholder="Link to Drive/portfolio (optional)" />
         </label>
         <button class="btn btn-primary" type="submit" id="join-btn">Submit</button>
         <div id="join-msg" class="msg muted" style="margin-top:10px"></div>
