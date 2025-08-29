@@ -1,6 +1,7 @@
-// Email helper. Uses EmailJS if configured; otherwise queues to Firestore 'emails' for record.
+// Email helper. Uses EmailJS if configured; otherwise stores in Firestore 'emails' outbox.
 (function(){
   const cfg = window.AppConfig?.email?.emailjs || {};
+  const defaultFromEmail = window.AppConfig?.email?.from || 'sandeshkadel2474@gmail.com';
   let emailjsLoaded = false;
 
   async function ensureEmailJs(){
@@ -17,24 +18,27 @@
 
   async function sendEmail(to, subject, html, meta={}){
     const ok = await ensureEmailJs();
+    const from_email = meta.from_email || defaultFromEmail;
+    const from_name = meta.from_name || 'Hack Club';
+    const to_name = meta.to_name || '';
+
     if (ok) {
       try {
         await window.emailjs.send(cfg.serviceId, cfg.templateId, {
           to_email: to,
+          to_name,
           subject,
           message_html: html,
-          // extra fields if your template uses them:
-          to_name: meta.to_name || '',
-          from_name: meta.from_name || 'Hack Club'
+          from_name,
+          from_email
         });
         return { ok:true, sent:true };
       } catch (e) {
         console.warn('EmailJS send failed; queueing instead:', e);
       }
     }
-    // Fallback: store email in Firestore outbox for records
     try {
-      await window.StorageAPI.pushEmail({ to, subject, html, meta, status:'queued' });
+      await window.StorageAPI.pushEmail({ to, subject, html, meta: { from_email, from_name, to_name }, status:'queued' });
       return { ok:true, sent:false, queued:true };
     } catch (e) {
       console.error('pushEmail failed:', e);
