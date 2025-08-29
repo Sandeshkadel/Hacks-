@@ -1,62 +1,38 @@
-// Minimal UI helpers: toast, escape, navbar toggle, sortable
+// Tiny UI helpers: tabs, forms, toast.
 (function(){
-  const UI = {
-    escape(s){
-      return String(s ?? '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
-    },
-    year(){ try{ const y = document.getElementById('year'); if (y) y.textContent = String(new Date().getFullYear()); }catch{} },
-    nav(){
-      try{
-        const btn = document.querySelector('.nav-toggle');
-        const links = document.querySelector('.nav-links');
-        btn?.addEventListener('click', ()=> links?.classList.toggle('open'));
-      }catch{}
-    },
-    toast(msg, type='info'){
-      try{
-        const el = document.getElementById('toast');
-        if (!el) { alert(msg); return; }
-        el.textContent = msg;
-        el.classList.add('show');
-        el.style.background = type==='error' ? '#7f1d1d' : type==='success' ? '#14532d' : '#1e293b';
-        setTimeout(()=> el.classList.remove('show'), 1800);
-      }catch{ alert(msg); }
-    },
-    sortable(container, onDone){
-      if (!container) return;
-      let dragEl = null;
-      container.addEventListener('dragstart', e=>{
-        const card = e.target.closest('[data-id]');
-        if (!card) return;
-        dragEl = card;
-        card.classList.add('dragging');
-      });
-      container.addEventListener('dragend', e=>{
-        const card = e.target.closest('[data-id]');
-        if (!card) return;
-        card.classList.remove('dragging');
-        const ids = [...container.querySelectorAll('[data-id]')].map(n=>n.getAttribute('data-id'));
-        onDone?.(ids);
-        dragEl = null;
-      });
-      container.addEventListener('dragover', (e)=>{
-        e.preventDefault();
-        const after = getDragAfterElement(container, e.clientY);
-        if (!dragEl) return;
-        if (after == null) container.appendChild(dragEl);
-        else container.insertBefore(dragEl, after);
-      });
-      function getDragAfterElement(container, y){
-        const els = [...container.querySelectorAll('[data-id]:not(.dragging)')];
-        return els.reduce((closest, child) => {
-          const box = child.getBoundingClientRect();
-          const offset = y - box.top - box.height/2;
-          if (offset < 0 && offset > closest.offset) return { offset, element: child };
-          else return closest;
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
-      }
-    }
-  };
-  window.UI = UI;
-  document.addEventListener('DOMContentLoaded', ()=> { UI.nav(); UI.year(); });
+  function toast(msg, type){
+    const el = document.getElementById('toast');
+    if (!el) return alert(msg);
+    el.textContent = msg;
+    el.className = 'toast ' + (type || '');
+    el.style.opacity = 1;
+    setTimeout(()=> el.style.opacity = 0, 2500);
+  }
+  function formToObject(form){
+    const o = {};
+    new FormData(form).forEach((v,k)=>{ o[k]=v; });
+    // normalize numbers if purely numeric fields like amount
+    if (o.amount && !isNaN(Number(o.amount))) o.amount = Number(o.amount);
+    return o;
+  }
+  function setForm(form, obj){
+    Object.keys(obj||{}).forEach(k=>{
+      const el = form.querySelector(`[name="${k}"]`);
+      if (el) el.value = obj[k];
+    });
+  }
+  function clearForm(form){ form.reset(); const id = form.querySelector('[name="id"]'); if (id) id.value=''; }
+
+  // Tabs
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.admin-sidebar button[data-tab]');
+    if (!btn) return;
+    document.querySelectorAll('.admin-sidebar button').forEach(b=> b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.admin-content .tab').forEach(t=> t.classList.add('hidden'));
+    document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
+  });
+
+  window.UI = { toast, formToObject, setForm, clearForm };
 })();
