@@ -8,27 +8,27 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="stylesheet" href="assets/css/admin.css" />
 
-  <!-- Local fallback + your Firebase config (must contain real keys) -->
-  <script defer src="assets/js/storage.js"></script>
-  <script defer src="assets/js/config.js"></script>
+  <!-- Local fallback + your Firebase config -->
+  <script defer src="assets/js/storage.js?v=7"></script>
+  <script defer src="assets/js/config.js?v=7"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
-  <!-- Remote Storage wrapper (overrides StorageAPI with Firestore) -->
-  <script defer src="assets/js/storage.remote.js"></script>
+  <!-- Remote Storage wrapper (overrides StorageAPI to Firestore if configured) -->
+  <script defer src="assets/js/storage.remote.js?v=7"></script>
 
   <!-- UI and Admin logic -->
-  <script defer src="assets/js/ui.js"></script>
-  <script defer src="assets/js/email.js"></script>
-  <script defer src="assets/js/admin.js"></script>
+  <script defer src="assets/js/ui.js?v=7"></script>
+  <script defer src="assets/js/email.js?v=7"></script>
+  <script defer src="assets/js/admin.js?v=7"></script>
 
   <style>
-    /* Hide the app until auth status is known, to avoid false redirects */
-    .auth-wait .admin-main,
-    .auth-wait .admin-topbar { visibility: hidden; }
+    /* Hide the app until auth status is known to avoid false redirect */
+    .auth-wait .admin-topbar,
+    .auth-wait .admin-main { visibility: hidden; }
     .auth-wait .auth-loading { display: grid; place-items: center; min-height: 40vh; color: #bbb; }
   </style>
 </head>
@@ -294,21 +294,26 @@
   <!-- Auth gate: wait for Firebase to restore session before redirecting -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Ensure SDK loaded
+      function reveal() {
+        document.body.classList.remove('auth-wait');
+        document.querySelector('.auth-loading')?.remove();
+      }
+
+      // Ensure Firebase SDK loaded
       if (!window.firebase?.auth) {
         console.error('Firebase Auth not loaded. Check script order.');
         return;
       }
-      const stop = firebase.auth().onAuthStateChanged((user) => {
-        stop(); // run once
+
+      const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+        unsubscribe(); // run once
         if (!user) {
           // Not logged in: go to login
           location.replace('admin-login.html');
           return;
         }
         // Logged in: reveal UI
-        document.body.classList.remove('auth-wait');
-        document.querySelector('.auth-loading')?.remove();
+        reveal();
       });
 
       // Logout button
