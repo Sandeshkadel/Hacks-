@@ -4,142 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hack Club — Join</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
-  <script defer src="assets/js/storage.js"></script>
-  <script defer src="assets/js/config.js"></script>
-  <script defer src="assets/js/ui.js"></script>
-  <script defer src="assets/js/email.js"></script>
-  <script defer src="assets/js/app.js"></script>
+
+  <!-- Local fallback + config -->
+  <script defer src="assets/js/storage.js?v=9"></script>
+  <script defer src="assets/js/config.js?v=9"></script>
+
+  <!-- Firebase (compat) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
+
+  <!-- Remote Storage wrapper + Email helper -->
+  <script defer src="assets/js/storage.remote.js?v=9"></script>
+  <script defer src="assets/js/email.js?v=9"></script>
+  <script defer src="assets/js/join.js?v=9"></script>
 </head>
 <body class="theme-gradient">
-  <canvas id="bg-canvas" class="bg-canvas"></canvas>
-  <header class="navbar">
-    <div class="nav-inner">
-      <a class="brand" href="https://hackclub.com" target="_blank"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
-      <nav class="nav-links">
-        <a href="index.html">Home</a>
-        <a href="join.html" class="active">Join Club</a>
-        <a href="sponsors.html">Sponsors</a>
-        <a href="projects.html">Projects</a>
-        <a href="gallery.html">Gallery</a>
-        <a href="hackathons.html">Hackathons</a>
-        <a href="meetings.html">Meetings</a>
-        <a href="contact.html">Contact</a>
-        <a href="donation.html">Donation</a>
-        <a href="courses.html">Courses/Videos</a>
-        <a href="info.html">Information</a>
-        <a href="admin-login.html">Login</a>
-      </nav>
-      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
-    </div>
-  </header>
-
   <main class="section-pad">
     <div class="container narrow">
-      <h1 class="section-title">Join Hack Club</h1>
-      <p class="subtitle center">All fields required. You’ll receive confirmation. Duplicates are rejected.</p>
-      <form id="join-form" class="form card hover-lift">
-        <div class="grid-2">
-          <label>Full Name
-            <input type="text" name="name" required />
-          </label>
-          <label>Caste
-            <input type="text" name="caste" required />
-          </label>
-          <label>Country
-            <input list="countries" name="country" id="country" placeholder="Search your country" required />
-            <datalist id="countries"></datalist>
-          </label>
-          <label>Contact (with country code)
-            <input type="tel" name="contact" id="contact" placeholder="+9779800000000" required />
-            <small class="muted">Enter a valid number for your selected country (E.164 format)</small>
-          </label>
-          <label>Location
-            <input type="text" name="location" required />
-          </label>
-          <label>Email
-            <input type="email" name="email" required />
-          </label>
-          <label>Message
-            <textarea name="message" rows="3" required></textarea>
-          </label>
-        </div>
-        <div class="center">
-          <button class="btn btn-primary" type="submit">Submit</button>
-        </div>
+      <h1>Join Hack Club</h1>
+      <form id="join-form" class="form card">
+        <label>Name <input name="name" required /></label>
+        <label>Email <input name="email" type="email" required /></label>
+        <label>Grade <input name="grade" /></label>
+        <label>Interests <input name="interests" placeholder="e.g., web, AI, hardware" /></label>
+        <label>Message <textarea name="message" rows="4" placeholder="Tell us about you"></textarea></label>
+        <button class="btn btn-primary" type="submit" id="join-btn">Submit</button>
+        <div id="join-msg" class="msg muted" style="margin-top:10px"></div>
       </form>
-
-      <div class="info card soft center">
-        <p>After approval, you will receive an email. If declined, you’ll receive a message to re-apply later.</p>
-      </div>
     </div>
   </main>
-
-  <footer class="footer simple">
-    <div class="container footer-bottom">
-      <p>© <span id="year"></span> Hack Club</p>
-    </div>
-  </footer>
-  <div id="toast" class="toast"></div>
-
-  <script>
-    const COUNTRY_DATA = [
-      { name:'Nepal', code:'NP', dial:'+977' },
-      { name:'India', code:'IN', dial:'+91' },
-      { name:'United States', code:'US', dial:'+1' },
-      { name:'United Kingdom', code:'GB', dial:'+44' },
-      { name:'Canada', code:'CA', dial:'+1' },
-      { name:'Australia', code:'AU', dial:'+61' },
-      { name:'Germany', code:'DE', dial:'+49' },
-      { name:'France', code:'FR', dial:'+33' },
-      { name:'Japan', code:'JP', dial:'+81' },
-      { name:'China', code:'CN', dial:'+86' }
-    ];
-    function populateCountries(){
-      const dl = document.getElementById('countries');
-      dl.innerHTML = COUNTRY_DATA.map(c => `<option value="${c.name} (${c.dial})"></option>`).join('');
-    }
-    function validatePhone(){
-      const countryVal = document.getElementById('country').value;
-      const contact = document.getElementById('contact').value.trim();
-      const dial = (countryVal.match(/\((\+\d+)\)/)||[])[1] || '';
-      const e164 = /^\+\d{6,15}$/;
-      if (!e164.test(contact) || (dial && !contact.startsWith(dial))){
-        window.UI.toast('Please enter a valid number according to the country code', 'error');
-        return false;
-      }
-      return true;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      populateCountries();
-      const form = document.getElementById('join-form');
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!validatePhone()) return;
-        const data = Object.fromEntries(new FormData(form).entries());
-        const res = window.StorageAPI.addMember(data);
-        if (!res.ok) {
-          window.UI.toast(res.message || 'Already registered', 'error');
-          return;
-        }
-        window.UI.toast('Registration submitted!', 'success');
-        try {
-          await window.EmailAPI.send({
-            to: data.email,
-            subject: 'Hack Club: Registration Received',
-            message: `Hi ${data.name}, we received your registration. You’ll be notified after review.`
-          });
-          await window.EmailAPI.send({
-            to: (window.AppConfig?.email?.adminEmail) || 'admin@club.local',
-            subject: 'New Registration',
-            message: `${data.name} (${data.email}) just registered. Review in Admin > Members.`
-          });
-        } catch (err) {}
-        form.reset();
-      });
-    });
-  </script>
 </body>
 </html>
