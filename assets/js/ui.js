@@ -1,4 +1,4 @@
-// Tiny UI helpers: tabs, forms, toast.
+// UI helpers: toast, forms, tabs, and splash loader handling.
 (function(){
   function toast(msg, type){
     const el = document.getElementById('toast');
@@ -11,14 +11,13 @@
   function formToObject(form){
     const o = {};
     new FormData(form).forEach((v,k)=>{ o[k]=v; });
-    // normalize numbers if purely numeric fields like amount
     if (o.amount && !isNaN(Number(o.amount))) o.amount = Number(o.amount);
     return o;
   }
   function setForm(form, obj){
     Object.keys(obj||{}).forEach(k=>{
       const el = form.querySelector(`[name="${k}"]`);
-      if (el) el.value = obj[k];
+      if (el) el.value = obj[k] ?? '';
     });
   }
   function clearForm(form){ form.reset(); const id = form.querySelector('[name="id"]'); if (id) id.value=''; }
@@ -34,5 +33,16 @@
     document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
   });
 
-  window.UI = { toast, formToObject, setForm, clearForm };
+  // Splash loader hider (fixes index.html stuck on loading)
+  let splashHidden = false;
+  function hideSplash(){
+    if (splashHidden) return;
+    const el = document.getElementById('splash');
+    if (el) { el.style.display = 'none'; splashHidden = true; }
+  }
+  // Hide when data first arrives or after a fallback timeout
+  window.addEventListener('clubDataUpdated', hideSplash, { once: true });
+  window.addEventListener('load', () => setTimeout(hideSplash, 1200));
+
+  window.UI = { toast, formToObject, setForm, clearForm, hideSplash };
 })();
