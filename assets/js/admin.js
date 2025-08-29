@@ -1,3 +1,18 @@
+// Add one-time dedupe on admin load (keeps oldest, removes duplicates by email/phone)
+(function(){
+  const S = window.StorageAPI;
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      await S.getData();
+      const flagKey = 'members.dedupe.ran';
+      if (!sessionStorage.getItem(flagKey) && typeof S.dedupeMembers === 'function'){
+        const removed = await S.dedupeMembers();
+        if (removed > 0 && window.UI?.toast) UI.toast(`Removed ${removed} duplicate registrations`, 'success');
+        sessionStorage.setItem(flagKey, '1');
+      }
+    } catch {}
+  });
+})();
 // Admin wiring: updated members table shows resume link; organizer form already supports social fields via admin.html
 (function(){
   const S = window.StorageAPI;
