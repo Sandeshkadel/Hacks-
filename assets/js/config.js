@@ -7,7 +7,6 @@ window.AppConfig = {
     storageBucket: "techcrafters-2919c.firebasestorage.app",
     messagingSenderId: "1039652089214",
     appId: "1:1039652089214:web:dc55c2fd07fee95c5e972f"
-     measurementId: "G-RSMJYSXHSQ"
   },
   // optional: EmailJS if you want real emails instead of mock outbox
   email: {
