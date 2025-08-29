@@ -7,7 +7,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="stylesheet" href="assets/css/admin.css" />
+
   <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
+
+  <!-- Firebase for remote persistence and admin auth -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
+
+  <script defer src="assets/js/storage.remote.js"></script>
   <script defer src="assets/js/ui.js"></script>
   <script defer src="assets/js/email.js"></script>
   <script defer src="assets/js/admin.js"></script>
@@ -44,7 +53,6 @@
     </aside>
 
     <section class="admin-content">
-      <!-- Dashboard -->
       <div class="tab" id="tab-dashboard">
         <h2>Overview</h2>
         <div class="cards three">
@@ -54,7 +62,6 @@
         </div>
       </div>
 
-      <!-- Members -->
       <div class="tab hidden" id="tab-members">
         <div class="row" style="justify-content:space-between; align-items:center">
           <h2>Members</h2>
@@ -63,7 +70,6 @@
         <div class="table" id="members-table"></div>
       </div>
 
-      <!-- Organizers -->
       <div class="tab hidden" id="tab-organizers">
         <h2>Organizers</h2>
         <form id="form-organizer" class="form row">
@@ -78,7 +84,6 @@
         <div id="organizers-list" class="cards three"></div>
       </div>
 
-      <!-- Projects -->
       <div class="tab hidden" id="tab-projects">
         <h2>Projects</h2>
         <form id="form-project" class="form row">
@@ -102,7 +107,6 @@
         <div id="projects-list" class="cards three sortable"></div>
       </div>
 
-      <!-- Hackathons -->
       <div class="tab hidden" id="tab-hackathons">
         <h2>Hackathons</h2>
         <form id="form-hackathon" class="form row">
@@ -121,7 +125,6 @@
         <div id="hackathons-list" class="cards two"></div>
       </div>
 
-      <!-- Gallery -->
       <div class="tab hidden" id="tab-gallery">
         <h2>Gallery</h2>
         <form id="form-gallery" class="form row">
@@ -141,7 +144,6 @@
         <div id="gallery-list" class="cards three"></div>
       </div>
 
-      <!-- Sponsors -->
       <div class="tab hidden" id="tab-sponsors">
         <h2>Sponsors</h2>
         <form id="form-sponsor" class="form row">
@@ -156,7 +158,6 @@
         <div id="sponsors-list" class="cards three"></div>
       </div>
 
-      <!-- Donors -->
       <div class="tab hidden" id="tab-donors">
         <h2>Donors</h2>
         <form id="form-donor" class="form row">
@@ -171,7 +172,6 @@
         <div id="donors-list" class="cards three"></div>
       </div>
 
-      <!-- Courses -->
       <div class="tab hidden" id="tab-courses">
         <h2>Courses & Videos</h2>
         <form id="form-course" class="form row">
@@ -192,7 +192,6 @@
         <div id="courses-list" class="cards three sortable"></div>
       </div>
 
-      <!-- Resources -->
       <div class="tab hidden" id="tab-resources">
         <h2>Resources</h2>
         <form id="form-resource" class="form row">
@@ -206,7 +205,6 @@
         <div id="resources-list" class="cards three"></div>
       </div>
 
-      <!-- Information -->
       <div class="tab hidden" id="tab-information">
         <h2>Information</h2>
         <form id="form-info" class="form">
@@ -233,7 +231,6 @@
         </div>
       </div>
 
-      <!-- Meetings -->
       <div class="tab hidden" id="tab-meetings">
         <h2>Meetings</h2>
         <form id="form-meeting" class="form row">
@@ -248,19 +245,16 @@
         <div id="meetings-list" class="cards two"></div>
       </div>
 
-      <!-- Messages -->
       <div class="tab hidden" id="tab-messages">
         <h2>Messages (from Contact)</h2>
         <div id="messages-table" class="table"></div>
       </div>
 
-      <!-- Emails -->
       <div class="tab hidden" id="tab-emails">
         <h2>Emails Outbox (Mock)</h2>
         <div id="emails-list" class="table"></div>
       </div>
 
-      <!-- Settings -->
       <div class="tab hidden" id="tab-settings">
         <h2>Settings</h2>
         <form id="form-settings" class="form">
