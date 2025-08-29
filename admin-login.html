@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <!-- Local fallback + config -->
-  <script defer src="assets/js/storage.js"></script>
-  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/storage.js?v=8"></script>
+  <script defer src="assets/js/config.js?v=8"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
@@ -16,7 +16,8 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
   <!-- Remote Storage wrapper -->
-  <script defer src="assets/js/storage.remote.js"></script>
+  <script defer src="assets/js/storage.remote.js?v=8"></script>
+  <script defer src="assets/js/ui.js?v=8"></script>
 </head>
 <body class="theme-gradient">
   <main class="section-pad">
@@ -33,7 +34,8 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // If already logged in, go to admin
+      // Wait for auth to initialize; if already logged in, forward to admin
+      if (!window.firebase?.auth) return console.error('Firebase not loaded');
       const stop = firebase.auth().onAuthStateChanged(user => {
         if (user) { stop(); location.replace('admin.html'); }
       });
@@ -54,7 +56,6 @@
           location.replace('admin.html');
         } catch (err) {
           console.error(err);
-          // Show Firebase error code to help diagnose (e.g., auth/domain-not-allowed)
           setMsg((err?.code || '') + ' ' + (err?.message || 'Login failed'), 'error');
         } finally {
           btn.disabled = false; btn.textContent = 'Login';
