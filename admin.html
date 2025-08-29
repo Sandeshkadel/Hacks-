@@ -9,8 +9,8 @@
   <link rel="stylesheet" href="assets/css/admin.css" />
 
   <!-- Local fallback + your Firebase config -->
-  <script defer src="assets/js/storage.js?v=8"></script>
-  <script defer src="assets/js/config.js?v=8"></script>
+  <script defer src="assets/js/storage.js?v=10"></script>
+  <script defer src="assets/js/config.js?v=10"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
@@ -18,21 +18,20 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
   <!-- Remote Storage wrapper (overrides StorageAPI to Firestore if configured) -->
-  <script defer src="assets/js/storage.remote.js?v=8"></script>
+  <script defer src="assets/js/storage.remote.js?v=10"></script>
 
   <!-- UI and Admin logic -->
-  <script defer src="assets/js/ui.js?v=8"></script>
-  <script defer src="assets/js/email.js?v=8"></script>
-  <script defer src="assets/js/admin.js?v=8"></script>
+  <script defer src="assets/js/ui.js?v=10"></script>
+  <script defer src="assets/js/email.js?v=10"></script>
+  <script defer src="assets/js/admin.js?v=10"></script>
 
   <style>
-    /* Hide until auth known to avoid redirect flash */
     .auth-wait .admin-topbar, .auth-wait .admin-main { visibility: hidden; }
     .auth-wait .auth-loading { display: grid; place-items: center; min-height: 40vh; color: #bbb; }
     .hidden { display: none !important; }
     .table { overflow-x:auto; }
     .table table { width:100%; border-collapse: collapse; }
-    .table th, .table td { border-bottom: 1px solid #333; padding: 8px; text-align: left; }
+    .table th, .table td { border-bottom: 1px solid #333; padding: 8px; text-align: left; vertical-align: top; }
     .row { display:flex; gap:8px; align-items:center; }
     .chip { padding:6px 10px; border-radius: 16px; background:#333; color:#fff; border:0; cursor:pointer; }
     .chip.danger { background:#9d2b2b; }
@@ -257,10 +256,12 @@
         <form id="form-meeting" class="form row">
           <input name="id" type="hidden" />
           <input name="title" placeholder="Title" required />
-          <input name="date" placeholder="Date" />
+          <input name="date" placeholder="Date & time (e.g., 2025-10-01 17:00)" />
+          <input name="zoomLink" placeholder="Zoom Join Link" />
+          <input name="zoomId" placeholder="Zoom Meeting ID" />
+          <input name="zoomPass" placeholder="Zoom Password" />
           <input name="description" placeholder="Description" />
-          <input name="zoomLink" placeholder="Zoom Link (optional)" />
-          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn btn-primary" type="submit">Save & Notify</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
         <div id="meetings-list" class="cards two"></div>
@@ -299,21 +300,15 @@
 
   <div id="toast" class="toast"></div>
 
-  <!-- Auth gate: wait for Firebase to restore session before redirecting -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      function reveal() {
-        document.body.classList.remove('auth-wait');
-        document.querySelector('.auth-loading')?.remove();
-      }
       if (!window.firebase?.auth) return console.error('Firebase Auth not loaded. Check script order.');
-
       const unsub = firebase.auth().onAuthStateChanged((user) => {
         unsub();
         if (!user) return location.replace('admin-login.html');
-        reveal();
+        document.body.classList.remove('auth-wait');
+        document.querySelector('.auth-loading')?.remove();
       });
-
       document.getElementById('logout')?.addEventListener('click', async () => {
         try { await window.StorageAPI?.logout?.(); } catch {}
         location.replace('admin-login.html');
