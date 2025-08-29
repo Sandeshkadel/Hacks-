@@ -1,15 +1,43 @@
-.admin-shell{min-height:100vh}
-.admin-topbar{position:sticky; top:0; background: rgba(0,0,0,0.3); border-bottom:1px solid var(--border); z-index:5}
-.admin-topbar-inner{display:flex; align-items:center; gap:16px; padding:10px 4%}
-.admin-topbar .brand-row{display:flex; align-items:center; gap:10px}
-.admin-topbar .brand-row img{height:28px}
+/* ===========================
+   Admin Panel Styles
+   =========================== */
+.admin-shell{ min-height:100vh }
+.admin-topbar{
+  position:sticky; top:0; z-index:50;
+  background: rgba(0,0,0,0.35);
+  border-bottom:1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+.admin-topbar-inner{ display:flex; align-items:center; gap:16px; padding:10px 4% }
+.admin-topbar .brand-row{ display:flex; align-items:center; gap:10px }
+.admin-topbar .brand-row img{ height:28px; filter: drop-shadow(0 3px 10px rgba(0,229,255,.18)) }
 
-.admin-main{display:grid; grid-template-columns: 220px 1fr; gap:16px; width:min(1200px, 96%); margin:20px auto}
-.admin-sidebar{display:flex; flex-direction:column; gap:8px; position:sticky; top:64px; height:calc(100vh - 100px)}
-.admin-sidebar button{padding:10px 12px; text-align:left; border:1px solid var(--border); border-radius:10px; background: rgba(255,255,255,0.03); color:#fff; cursor:pointer}
-.admin-sidebar button.active, .admin-sidebar button:hover{background: rgba(255,255,255,0.08)}
-.admin-content{padding:6px}
+.admin-main{
+  display:grid; grid-template-columns: 230px 1fr; gap:16px;
+  width:min(1200px, 96%); margin:20px auto;
+}
+.admin-sidebar{
+  display:flex; flex-direction:column; gap:8px;
+  position:sticky; top:70px; height: calc(100vh - 110px);
+}
+.admin-sidebar button{
+  padding:10px 12px; text-align:left; border:1px solid var(--border);
+  border-radius:10px; background: rgba(255,255,255,0.03); color:#fff; cursor:pointer;
+  transition: background var(--fast) ease, transform var(--fast) ease, border-color var(--fast) ease;
+}
+.admin-sidebar button:hover{ background: rgba(255,255,255,0.07); transform: translateX(2px) }
+.admin-sidebar button.active{
+  background: linear-gradient(135deg, rgba(0,229,255,.14), rgba(122,92,255,.14));
+  border-color: var(--border-strong);
+}
+.admin-content{ padding:6px }
 
-.tab{padding:8px 0}
-.grid-2{display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px}
-@media (max-width: 900px){ .admin-main{grid-template-columns: 1fr} .admin-sidebar{position:static; height:auto} .grid-2{grid-template-columns: 1fr} }
+.tab{ padding:8px 0 }
+.grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px }
+
+@media (max-width: 900px){
+  .admin-main{ grid-template-columns: 1fr }
+  .admin-sidebar{ position:static; height:auto; flex-direction:row; overflow:auto; padding-bottom:6px }
+  .admin-sidebar button{ white-space:nowrap }
+  .grid-2{ grid-template-columns: 1fr }
+}
