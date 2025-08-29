@@ -1,19 +1,19 @@
-// Remote Firestore-backed StorageAPI. If Firebase config exists, this overrides the fallback StorageAPI.
+// Firestore-backed StorageAPI with real-time sync for everyone.
+// If Firebase config is present, this overrides the local fallback StorageAPI.
 (function(){
   const cfg = window.AppConfig?.firebase;
   if (!cfg?.apiKey) {
-    // No Firebase configured: keep local fallback
-    console.info('[Storage] Firebase not configured, using localStorage fallback.');
+    console.info('[Storage] Firebase not configured; using local fallback.');
     return;
   }
-  console.info('[Storage] Using Firebase Firestore for persistent storage.');
+  console.info('[Storage] Firebase enabled; using Firestore (real-time).');
 
-  // Initialize Firebase (compat)
+  // Init Firebase (compat)
   const app = firebase.initializeApp(cfg);
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  // Collections mapping
+  // Collections we manage
   const COLS = [
     'organizers','sponsors','donors','resources',
     'projects','hackathons','gallery','courses',
@@ -22,21 +22,67 @@
   const META_SETTINGS = db.collection('meta').doc('settings');
   const META_INFO = db.collection('meta').doc('information');
 
-  function uid(){ return db.collection('_seq').doc().id.toUpperCase(); }
+  // In-memory state
+  const state = {
+    ready: false,
+    data: {
+      settings: {},
+      information: {},
+      organizers: [],
+      sponsors: [],
+      donors: [],
+      resources: [],
+      projects: [],
+      hackathons: [],
+      gallery: [],
+      courses: [],
+      members: [],
+      meetings: [],
+      messages: [],
+      emails: []
+    }
+  };
 
-  // Helpers
+  function uid(){ return db.collection('_seq').doc().id.toUpperCase(); }
+  function emit(){ window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {})); }
+
+  // One-shot getters used pre-listener
   async function getDocSafe(docRef, fallback){
     const snap = await docRef.get();
-    return snap.exists ? snap.data() : (fallback ?? {});
+    return snap.exists ? (snap.data() || {}) : (fallback ?? {});
   }
   async function getColAll(name){
-    const snap = await db.collection(name).orderBy('order', 'desc').get().catch(async err=>{
-      // No index/order yet: fetch without order
-      const alt = await db.collection(name).get();
-      return alt;
-    });
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    try {
+      const snap = await db.collection(name).orderBy('order','desc').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch {
+      const snap = await db.collection(name).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
   }
+
+  // Real-time listeners (everyone gets updates immediately)
+  function attachRealtime(){
+    // meta docs
+    META_SETTINGS.onSnapshot(s => { state.data.settings = s.data() || {}; emit(); });
+    META_INFO.onSnapshot(s => { state.data.information = s.data() || {}; emit(); });
+    // collections
+    COLS.forEach(name => {
+      try {
+        db.collection(name).orderBy('order','desc').onSnapshot(snap => {
+          state.data[name] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          emit();
+        });
+      } catch {
+        db.collection(name).onSnapshot(snap => {
+          state.data[name] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          emit();
+        });
+      }
+    });
+  }
+
+  // Writers
   async function setColItem(name, item){
     const id = item.id || uid();
     const ref = db.collection(name).doc(id);
@@ -49,60 +95,41 @@
     await db.collection(name).doc(id).delete();
   }
   async function reorderCol(name, orderedIds){
-    // Write incremental order values
-    const batch = db.batch();
     const base = Number.MAX_SAFE_INTEGER;
-    orderedIds.forEach((id, i)=>{
+    const batch = db.batch();
+    orderedIds.forEach((id, i) => {
       const ref = db.collection(name).doc(id);
       batch.set(ref, { order: base - i }, { merge:true });
     });
     await batch.commit();
   }
 
-  // Cache last fetched data for stats
-  let cache = null;
-
+  // Override global StorageAPI with remote implementation
   window.StorageAPI = {
+    // Load data once, then rely on realtime listeners
     async getData(){
-      // Fetch all data concurrently
-      const [
-        settings, information,
-        organizers, sponsors, donors, resources,
-        projects, hackathons, gallery, courses,
-        members, meetings, messages, emails
-      ] = await Promise.all([
-        getDocSafe(META_SETTINGS, { adminEmail:'', adminUser:'', donationLink:'', contact:'', socials:[] }),
-        getDocSafe(META_INFO, {}),
-        ...COLS.map(getColAll)
-      ]);
-      const data = {
-        settings, information,
-        organizers, sponsors, donors, resources,
-        projects, hackathons, gallery, courses,
-        members, meetings, messages, emails
-      };
-      cache = data;
-      return data;
-    },
-
-    async setData(){ /* no-op on remote: use per-list upsert/remove APIs */ },
-
-    async reset(){
-      // Dangerous utility: wipe collections (admin only). Not exposed in UI.
-      if (!auth.currentUser) throw new Error('Not authorized');
-      for (const name of COLS){
-        const docs = await db.collection(name).get();
-        const batch = db.batch();
-        docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
+      if (!state.ready){
+        const [
+          settings, information,
+          organizers, sponsors, donors, resources,
+          projects, hackathons, gallery, courses,
+          members, meetings, messages, emails
+        ] = await Promise.all([
+          getDocSafe(META_SETTINGS, {}),
+          getDocSafe(META_INFO, {}),
+          ...COLS.map(getColAll)
+        ]);
+        state.data = { settings, information, organizers, sponsors, donors, resources, projects, hackathons, gallery, courses, members, meetings, messages, emails };
+        state.ready = true;
+        attachRealtime();
       }
-      await META_SETTINGS.delete();
-      await META_INFO.delete();
+      return state.data;
     },
+    async setData(){ /* no-op on remote */ },
+    async reset(){ /* not exposed for safety */ },
 
     stats(){
-      const d = cache;
-      if (!d) return { participants: 0, projects: 0, organizers: 0 };
+      const d = state.data;
       return {
         participants: (d.members||[]).filter(m=>m.status==='approved').length,
         projects: (d.projects||[]).length,
@@ -114,73 +141,52 @@
     async addMember(member){
       const data = { id: uid(), ...member, status:'pending', createdAt: Date.now() };
       await setColItem('members', data);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
       return { ok:true, id: data.id };
     },
     async updateMember(id, updates){
       await setColItem('members', { id, ...updates });
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
       return true;
     },
     async deleteMember(id){
       await delColItem('members', id);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
     },
 
-    // Generic lists
-    async upsert(listName, item){
-      const saved = await setColItem(listName, item);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
-      return saved;
-    },
-    async remove(listName, id){
-      await delColItem(listName, id);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
-    },
-    async reorder(listName, orderedIds){
-      await reorderCol(listName, orderedIds);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
-    },
+    // Generic CRUD
+    async upsert(listName, item){ return await setColItem(listName, item); },
+    async remove(listName, id){ await delColItem(listName, id); },
+    async reorder(listName, ids){ await reorderCol(listName, ids); },
 
     async setInformationSection(section, html){
       await META_INFO.set({ [section]: html }, { merge:true });
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
     },
 
     async addMessage(msg){
       const data = { id: uid(), date: new Date().toISOString(), ...msg };
       await setColItem('messages', data);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
     },
 
     async emailOutbox(){
-      return await getColAll('emails');
+      const snap = await db.collection('emails').orderBy('date', 'desc').get().catch(()=> db.collection('emails').get());
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
     async pushEmail(email){
       const data = { id: uid(), date: new Date().toISOString(), ...email };
       await setColItem('emails', data);
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
     },
 
     async settings(){
-      return await getDocSafe(META_SETTINGS, { adminEmail:'', adminUser:'', donationLink:'', contact:'', socials:[] });
+      const s = await getDocSafe(META_SETTINGS, {});
+      return s;
     },
     async saveSettings(upd){
       await META_SETTINGS.set(upd, { merge:true });
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {}));
     },
 
-    // Auth: use Firebase Auth when configured; fallback to local if Firebase Auth not enabled
-    async checkCredentials(username, password){
-      // When using Firebase, we check by trying to sign in (but login() does this)
-      return { ok:false };
-    },
+    // Auth via Firebase
+    async checkCredentials(){ return { ok:false }; },
     async login(username, password){
-      if (cfg?.apiKey){
-        await auth.signInWithEmailAndPassword(username, password);
-        return true;
-      }
-      return false;
+      await auth.signInWithEmailAndPassword(username, password);
+      return true;
     },
     logout(){ return auth.signOut(); },
     isAuthed(){ return !!auth.currentUser; },
@@ -190,6 +196,6 @@
     }
   };
 
-  // Keep cache updated on every write from other tabs (optional: listeners)
-  // For simplicity, we refresh cache on-demand when getData() is called.
+  // Make sure clubDataUpdated fires on auth state changes (useful for UI toggles)
+  auth.onAuthStateChanged(() => emit());
 })();
