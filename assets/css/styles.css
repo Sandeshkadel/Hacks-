@@ -172,3 +172,10 @@ img{max-width:100%; display:block}
   .nav-toggle{display:block; margin-left:auto}
   .grid-2{grid-template-columns: 1fr}
 }
+/* same as previously provided, with these additional splash styles at the end */
+.splash{
+  position:fixed; inset:0; background: linear-gradient(180deg, #0e0f1e, #090a14);
+  display:flex; align-items:center; justify-content:center; z-index:100;
+  opacity: 1; transition: opacity .45s ease;
+}
+.splash.fadeout{ opacity: 0; }
