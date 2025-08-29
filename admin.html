@@ -9,8 +9,8 @@
   <link rel="stylesheet" href="assets/css/admin.css" />
 
   <!-- Local fallback + your Firebase config -->
-  <script defer src="assets/js/storage.js?v=7"></script>
-  <script defer src="assets/js/config.js?v=7"></script>
+  <script defer src="assets/js/storage.js?v=8"></script>
+  <script defer src="assets/js/config.js?v=8"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
@@ -18,18 +18,26 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
   <!-- Remote Storage wrapper (overrides StorageAPI to Firestore if configured) -->
-  <script defer src="assets/js/storage.remote.js?v=7"></script>
+  <script defer src="assets/js/storage.remote.js?v=8"></script>
 
   <!-- UI and Admin logic -->
-  <script defer src="assets/js/ui.js?v=7"></script>
-  <script defer src="assets/js/email.js?v=7"></script>
-  <script defer src="assets/js/admin.js?v=7"></script>
+  <script defer src="assets/js/ui.js?v=8"></script>
+  <script defer src="assets/js/email.js?v=8"></script>
+  <script defer src="assets/js/admin.js?v=8"></script>
 
   <style>
-    /* Hide the app until auth status is known to avoid false redirect */
-    .auth-wait .admin-topbar,
-    .auth-wait .admin-main { visibility: hidden; }
+    /* Hide until auth known to avoid redirect flash */
+    .auth-wait .admin-topbar, .auth-wait .admin-main { visibility: hidden; }
     .auth-wait .auth-loading { display: grid; place-items: center; min-height: 40vh; color: #bbb; }
+    .hidden { display: none !important; }
+    .table { overflow-x:auto; }
+    .table table { width:100%; border-collapse: collapse; }
+    .table th, .table td { border-bottom: 1px solid #333; padding: 8px; text-align: left; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .chip { padding:6px 10px; border-radius: 16px; background:#333; color:#fff; border:0; cursor:pointer; }
+    .chip.danger { background:#9d2b2b; }
+    .chip.success { background:#2b9d50; }
+    .chip.warn { background:#9d822b; }
   </style>
 </head>
 <body class="theme-gradient admin-shell auth-wait">
@@ -117,7 +125,7 @@
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
-        <div id="projects-list" class="cards three sortable"></div>
+        <div id="projects-list" class="cards three"></div>
       </div>
 
       <div class="tab hidden" id="tab-hackathons">
@@ -202,7 +210,7 @@
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
-        <div id="courses-list" class="cards three sortable"></div>
+        <div id="courses-list" class="cards three"></div>
       </div>
 
       <div class="tab hidden" id="tab-resources">
@@ -221,8 +229,8 @@
       <div class="tab hidden" id="tab-information">
         <h2>Information</h2>
         <form id="form-info" class="form">
-          <label>Section key (existing or new, e.g. goals, motto, what_is_hackclub)
-            <input name="section" placeholder="section key" required />
+          <label>Section key (existing or new)
+            <input name="section" placeholder="e.g. goals, motto" required />
           </label>
           <label>HTML content
             <textarea name="html" placeholder="HTML content" rows="8" class="mono"></textarea>
@@ -264,7 +272,7 @@
       </div>
 
       <div class="tab hidden" id="tab-emails">
-        <h2>Emails Outbox (Mock)</h2>
+        <h2>Emails Outbox</h2>
         <div id="emails-list" class="table"></div>
       </div>
 
@@ -298,25 +306,14 @@
         document.body.classList.remove('auth-wait');
         document.querySelector('.auth-loading')?.remove();
       }
+      if (!window.firebase?.auth) return console.error('Firebase Auth not loaded. Check script order.');
 
-      // Ensure Firebase SDK loaded
-      if (!window.firebase?.auth) {
-        console.error('Firebase Auth not loaded. Check script order.');
-        return;
-      }
-
-      const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-        unsubscribe(); // run once
-        if (!user) {
-          // Not logged in: go to login
-          location.replace('admin-login.html');
-          return;
-        }
-        // Logged in: reveal UI
+      const unsub = firebase.auth().onAuthStateChanged((user) => {
+        unsub();
+        if (!user) return location.replace('admin-login.html');
         reveal();
       });
 
-      // Logout button
       document.getElementById('logout')?.addEventListener('click', async () => {
         try { await window.StorageAPI?.logout?.(); } catch {}
         location.replace('admin-login.html');
