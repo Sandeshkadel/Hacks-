@@ -1,0 +1,15 @@
+<!-- Local fallback first -->
+<script defer src="assets/js/storage.js?v=3"></script>
+<!-- Your Firebase config MUST load before remote -->
+<script defer src="assets/js/config.js?v=3"></script>
+
+<!-- Firebase SDKs (compat) -->
+<script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
+
+<!-- Remote storage (overrides local if Firebase is configured) -->
+<script defer src="assets/js/storage.remote.js?v=3"></script>
+
+<!-- Your UI scripts after StorageAPI is set -->
+<script defer src="assets/js/ui.js?v=3"></script>
