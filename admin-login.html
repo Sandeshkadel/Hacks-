@@ -4,137 +4,62 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hack Club — Admin Login</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
 
-  <!-- Local fallback first -->
+  <!-- Local fallback + config -->
   <script defer src="assets/js/storage.js"></script>
-  <!-- Your config (fill Firebase keys here for PERMANENT changes) -->
   <script defer src="assets/js/config.js"></script>
 
-  <!-- Firebase (used only if config has keys) -->
+  <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
-  <!-- Remote storage (overrides StorageAPI if Firebase configured) -->
+  <!-- Remote Storage wrapper -->
   <script defer src="assets/js/storage.remote.js"></script>
-
-  <script defer src="assets/js/ui.js"></script>
 </head>
 <body class="theme-gradient">
-  <canvas id="bg-canvas" class="bg-canvas"></canvas>
-
-  <header class="navbar">
-    <div class="nav-inner">
-      <a class="brand" href="#"><img src="assets/img/logo.svg" alt="Hack Club" /></a>
-      <nav class="nav-links">
-        <a href="index.html">Home</a>
-        <a href="admin-login.html" class="active">Login</a>
-      </nav>
-      <button class="nav-toggle" aria-label="Open Menu"><span></span><span></span><span></span></button>
-    </div>
-  </header>
-
   <main class="section-pad">
     <div class="container narrow">
-      <h1 class="section-title">Admin Login</h1>
-
-      <form id="login-form" class="form card hover-lift" autocomplete="on">
-        <label>Admin ID (email)
-          <input type="email" name="username" id="username" required autocomplete="username" />
-        </label>
-        <label>Password
-          <input type="password" name="password" id="password" required autocomplete="current-password" />
-        </label>
-        <label class="row" style="align-items:center; gap:8px; margin:8px 0 4px">
-          <input type="checkbox" id="show-pass" />
-          <span class="muted">Show password</span>
-        </label>
+      <h1>Admin Login</h1>
+      <form id="login-form" class="form card">
+        <label>Email <input type="email" id="username" required autocomplete="username" /></label>
+        <label>Password <input type="password" id="password" required autocomplete="current-password" /></label>
         <button class="btn btn-primary" type="submit" id="login-btn">Login</button>
         <div id="login-msg" class="msg muted" style="margin-top:10px"></div>
-        <!-- Hidden by default; shown only on localhost for dev -->
-        <p class="muted" id="ctx-note" style="margin-top:6px; display:none"></p>
       </form>
     </div>
   </main>
 
-  <footer class="footer simple">
-    <div class="container footer-bottom">
-      <p>© <span id="year"></span> Hack Club</p>
-    </div>
-  </footer>
-
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Redirect if already logged in
-      try { if (window.StorageAPI.isAuthed()) { location.href = 'admin.html'; return; } } catch {}
+      // If already logged in, go to admin
+      const stop = firebase.auth().onAuthStateChanged(user => {
+        if (user) { stop(); location.replace('admin.html'); }
+      });
 
       const form = document.getElementById('login-form');
       const userEl = document.getElementById('username');
       const passEl = document.getElementById('password');
-      const show = document.getElementById('show-pass');
       const btn = document.getElementById('login-btn');
       const msg = document.getElementById('login-msg');
-      const note = document.getElementById('ctx-note');
+      const setMsg = (t, typ='muted') => { msg.textContent=t||''; msg.className='msg '+typ; };
 
-      function setMsg(text, type){
-        msg.textContent = text || '';
-        msg.className = 'msg ' + (type || 'muted');
-      }
-      function setNote(text){
-        if (!text) { note.style.display = 'none'; note.textContent = ''; }
-        else { note.style.display = 'block'; note.textContent = text; }
-      }
-
-      // Only show any note on localhost; keep production clean
-      const hasFirebase = !!(window.AppConfig && window.AppConfig.firebase && window.AppConfig.firebase.apiKey);
-      const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
-      if (isLocalhost) {
-        setNote(hasFirebase ? 'Using Firebase Auth' : 'Firebase not configured: using local login (development only).');
-      } else {
-        setNote(''); // hide in production
-      }
-
-      show.addEventListener('change', () => {
-        passEl.type = show.checked ? 'text' : 'password';
-      });
-
-      async function doLogin(e){
-        e?.preventDefault?.();
-        const username = userEl.value.trim();
-        const password = passEl.value;
-
-        if (!username || !password){
-          setMsg('Please enter ID and password', 'error');
-          return;
-        }
-
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         try {
-          btn.disabled = true;
-          btn.textContent = 'Logging in…';
-
-          const ok = await window.StorageAPI.login(username, password);
-          if (ok) {
-            setMsg('Login successful. Redirecting…', 'success');
-            location.href = 'admin.html';
-          } else {
-            const res = await window.StorageAPI.checkCredentials?.(username, password);
-            if (res?.reason === 'user') setMsg('Admin ID is wrong', 'error');
-            else if (res?.reason === 'pass') setMsg('Password is wrong', 'error');
-            else setMsg('Login failed', 'error');
-          }
+          btn.disabled = true; btn.textContent = 'Logging in…';
+          await window.StorageAPI.login(userEl.value.trim(), passEl.value);
+          setMsg('Login successful', 'success');
+          location.replace('admin.html');
         } catch (err) {
           console.error(err);
-          setMsg(err?.message || 'Unexpected error, please try again', 'error');
+          // Show Firebase error code to help diagnose (e.g., auth/domain-not-allowed)
+          setMsg((err?.code || '') + ' ' + (err?.message || 'Login failed'), 'error');
         } finally {
-          btn.disabled = false;
-          btn.textContent = 'Login';
+          btn.disabled = false; btn.textContent = 'Login';
         }
-      }
-
-      form.addEventListener('submit', doLogin);
-      btn.addEventListener('click', doLogin);
+      });
     });
   </script>
 </body>
