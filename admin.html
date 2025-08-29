@@ -8,22 +8,18 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="stylesheet" href="assets/css/admin.css" />
 
-  <!-- Local fallback + your Firebase config -->
-  <script defer src="assets/js/storage.js?v=10"></script>
-  <script defer src="assets/js/config.js?v=10"></script>
+  <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
-  <!-- Remote Storage wrapper (overrides StorageAPI to Firestore if configured) -->
-  <script defer src="assets/js/storage.remote.js?v=10"></script>
-
-  <!-- UI and Admin logic -->
-  <script defer src="assets/js/ui.js?v=10"></script>
-  <script defer src="assets/js/email.js?v=10"></script>
-  <script defer src="assets/js/admin.js?v=10"></script>
+  <script defer src="assets/js/storage.remote.js"></script>
+  <script defer src="assets/js/ui.js"></script>
+  <script defer src="assets/js/email.js"></script>
+  <script defer src="assets/js/admin.js"></script>
 
   <style>
     .auth-wait .admin-topbar, .auth-wait .admin-main { visibility: hidden; }
@@ -32,7 +28,7 @@
     .table { overflow-x:auto; }
     .table table { width:100%; border-collapse: collapse; }
     .table th, .table td { border-bottom: 1px solid #333; padding: 8px; text-align: left; vertical-align: top; }
-    .row { display:flex; gap:8px; align-items:center; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .chip { padding:6px 10px; border-radius: 16px; background:#333; color:#fff; border:0; cursor:pointer; }
     .chip.danger { background:#9d2b2b; }
     .chip.success { background:#2b9d50; }
@@ -97,7 +93,11 @@
           <input name="name" placeholder="Name" required />
           <input name="role" placeholder="Role" />
           <input name="image" placeholder="Image URL" />
-          <input name="socials" placeholder="Social links (comma-separated URLs)" />
+          <input name="facebook" placeholder="Facebook URL or username" />
+          <input name="instagram" placeholder="Instagram URL or username" />
+          <input name="github" placeholder="GitHub URL or username" />
+          <input name="whatsapp" placeholder="WhatsApp link or phone (e.g., +97798XXXXXXX)" />
+          <input name="linkedin" placeholder="LinkedIn URL or username" />
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" type="button" data-reset>Reset</button>
         </form>
