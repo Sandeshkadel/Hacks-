@@ -1,151 +1,149 @@
-// Public rendering + 2s boot splash + live refresh
-document.addEventListener('DOMContentLoaded', () => {
-  // Splash visible for 2 seconds
-  const splash = document.getElementById('splash');
-  if (splash) {
-    const hideSplash = () => {
-      splash.classList.add('fadeout');
-      setTimeout(() => { splash.style.display = 'none'; }, 450);
+// Public site renderer: pulls data from Firestore via StorageAPI and populates sections.
+// Works on index.html and any page that includes the needed section IDs.
+(function(){
+  const S = window.StorageAPI;
+
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const esc = (s) => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function onData(fn){ window.addEventListener('clubDataUpdated', fn); }
+
+  // Stats counters on index
+  function renderStats(){
+    const counters = {
+      participants: $('[data-counter="participants"]'),
+      projects: $('[data-counter="projects"]'),
+      organizers: $('[data-counter="organizers"]')
     };
-    setTimeout(hideSplash, 2000);
+    if (!counters.participants) return;
+    const st = S.stats();
+    Object.entries(counters).forEach(([k, el]) => {
+      if (!el) return;
+      const target = Number(st[k] || 0);
+      const cur = Number(el.textContent || 0);
+      if (target === cur){ el.textContent = String(target); return; }
+      const start = performance.now(), dur = 500;
+      (function step(t){
+        const p = Math.min(1, (t - start) / dur);
+        el.textContent = String(Math.round(cur + (target - cur) * p));
+        if (p < 1) requestAnimationFrame(step);
+      })(start);
+    });
   }
 
-  const UI = window.UI || { escape: (s)=>String(s??'') };
-  const esc = (s) => UI.escape(s);
-  const data = () => (window.StorageAPI?.getData?.() || {});
-
-  const nameFromUrl = (u='') => {
-    const x = u.toLowerCase();
-    if (x.includes('github')) return 'GitHub';
-    if (x.includes('linkedin')) return 'LinkedIn';
-    if (x.includes('twitter') || x.includes('x.com')) return 'Twitter';
-    if (x.includes('instagram')) return 'Instagram';
-    if (x.includes('facebook')) return 'Facebook';
-    if (x.includes('youtube')) return 'YouTube';
-    return 'Link';
-  };
-  const renderSocials = (arr=[]) => (arr||[]).map(s => `<a class="chip sm" href="${esc(s.url||'#')}" target="_blank" rel="noopener">${esc(s.name || nameFromUrl(s.url||''))}</a>`).join('');
-
-  function renderClubInfo(d){
-    const wrap = document.getElementById('club-info');
-    if (!wrap) return;
-    const info = d.information || {};
-    const entries = Object.entries(info);
-    if (!entries.length){
-      wrap.innerHTML = '<p class="muted">No information yet. Admin can add it in Information tab.</p>';
-      return;
-    }
-    wrap.innerHTML = entries.map(([key, html]) => `
-      <article class="card soft">
-        <h3>${esc(key.replaceAll('_',' '))}</h3>
-        <div class="muted" style="max-height:160px; overflow:auto">${html}</div>
-      </article>
-    `).join('');
+  function renderClubInfo(){
+    const box = $('#club-info'); if (!box) return;
+    S.getData().then(d => {
+      const info = d.information || {};
+      const keys = Object.keys(info);
+      if (!keys.length){ box.innerHTML = '<div class="card soft"><p class="muted">No information yet.</p></div>'; return; }
+      box.innerHTML = keys.slice(0, 6).map(k => `
+        <article class="card soft">
+          <h3>${esc(k.replaceAll('_',' '))}</h3>
+          <div class="prose">${info[k] || ''}</div>
+        </article>
+      `).join('');
+    });
   }
 
-  function renderOrganizers(d){
-    const wrap = document.getElementById('organizers');
-    if (!wrap) return;
-    const orgs = d.organizers || [];
-    wrap.innerHTML = (orgs.length ? orgs : []).map(o => `
-      <article class="card overlay-card">
-        <div class="img-wrap">
-          <img src="${esc(o.image || 'https://placehold.co/320x200?text=Organizer')}" alt="${esc(o.name || 'Organizer')}" />
-        </div>
-        <div class="info">
-          <h3>${esc(o.name || '')}</h3>
-          <p class="muted">${esc(o.role || '')}</p>
-        </div>
-        <div class="overlay">
-          <h3>${esc(o.name || '')}</h3>
-          <p class="muted">${esc(o.role || '')}</p>
-          ${Array.isArray(o.socials) && o.socials.length ? `<div class="socials">${renderSocials(o.socials)}</div>` : ''}
-        </div>
-      </article>
-    `).join('') || '<p class="muted">No organizers yet.</p>';
+  function renderOrganizers(){
+    const box = $('#organizers'); if (!box) return;
+    S.getData().then(d => {
+      const arr = d.organizers || [];
+      if (!arr.length){ box.innerHTML = '<div class="card soft"><p class="muted">No organizers yet.</p></div>'; return; }
+      box.innerHTML = arr.map(o => `
+        <article class="card person">
+          <div class="avatar" style="background-image:url('${esc(o.image || 'assets/img/placeholder-user.png')}')"></div>
+          <h4>${esc(o.name || '')}</h4>
+          ${o.role ? `<p class="muted">${esc(o.role)}</p>`:''}
+          ${o.socials ? `<div class="row wrap">${esc(o.socials).split(',').map(s => s.trim()).filter(Boolean).map(u => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">Link</a>`).join('')}</div>`:''}
+        </article>
+      `).join('');
+    });
   }
 
-  function renderProjects(d){
-    const wrap = document.getElementById('home-projects');
-    if (!wrap) return;
-    let items = (d.projects||[]).slice();
-    const awardOrder = { year:0, month:1, week:2, '':3, undefined:3 };
-    items.sort((a,b)=> (awardOrder[a.award||''] ?? 3) - (awardOrder[b.award||''] ?? 3));
-    items = items.slice(0, 8);
-    wrap.innerHTML = items.map(p => `
-      <article class="card overlay-card">
-        <div class="img-wrap">
-          <img src="${esc(p.image||'https://placehold.co/640x360?text=Project')}" alt="${esc(p.name||'')}" />
-        </div>
-        <div class="info">
-          <h3>${esc(p.name||'')}</h3>
-          <p class="muted">${esc(p.creators||'')}</p>
-        </div>
-        <div class="overlay">
-          <h3>${esc(p.name||'')}</h3>
-          <p class="muted">${esc(p.creators||'')}</p>
-          <p>${esc(p.description||'')}</p>
-          <div class="row">
-            ${p.demo ? `<a class="chip sm" href="${esc(p.demo)}" target="_blank" rel="noopener">Demo</a>`:''}
-            ${p.code ? `<a class="chip sm" href="${esc(p.code)}" target="_blank" rel="noopener">Code</a>`:''}
-            ${p.award ? `<span class="badge ${esc(p.award)}">${esc((p.award||'').toUpperCase())}</span>`:''}
+  function renderHomeProjects(){
+    const box = $('#home-projects'); if (!box) return;
+    S.getData().then(d => {
+      const arr = (d.projects || []).slice(0, 6);
+      if (!arr.length){ box.innerHTML = '<div class="card soft"><p class="muted">No projects yet.</p></div>'; return; }
+      box.innerHTML = arr.map(p => `
+        <article class="card project hoverable">
+          <div class="cover" style="background-image:url('${esc(p.image || 'assets/img/placeholder-cover.jpg')}')"></div>
+          <div class="pad">
+            <h4>${esc(p.name || '')}</h4>
+            ${p.creators ? `<p class="muted">by ${esc(p.creators)}</p>`:''}
+            <div class="row">
+              ${p.demo ? `<a class="chip" href="${esc(p.demo)}" target="_blank" rel="noopener">Demo</a>`:''}
+              ${p.code ? `<a class="chip" href="${esc(p.code)}" target="_blank" rel="noopener">Code</a>`:''}
+            </div>
           </div>
-          <div class="socials" style="margin-top:8px">${renderSocials(p.makerSocials||[])}</div>
-        </div>
-      </article>
-    `).join('') || '<p class="muted">No projects yet.</p>';
+        </article>
+      `).join('');
+    });
   }
 
-  function renderSponsors(d){
-    const wrap = document.getElementById('home-sponsors');
-    if (!wrap) return;
-    const sponsors = (d.sponsors||[]).slice(0, 4);
-    wrap.innerHTML = sponsors.map(s=> `
-      <article class="card sponsor hover-lift">
-        <img class="sponsor-logo" src="${esc(s.image || '')}" alt="${esc(s.name || '')}" />
-        <h3>${esc(s.name || '')}</h3>
-      </article>
-    `).join('') || '<p class="muted">No sponsors yet.</p>';
+  function renderSponsors(){
+    const box = $('#home-sponsors'); if (!box) return;
+    S.getData().then(d => {
+      const arr = d.sponsors || [];
+      if (!arr.length){ box.innerHTML = '<div class="card soft"><p class="muted">No sponsors yet.</p></div>'; return; }
+      box.innerHTML = arr.map(s => `
+        <a class="card sponsor hoverable" ${s.link ? `href="${esc(s.link)}" target="_blank" rel="noopener"`:''}>
+          <div class="cover contain" style="background-image:url('${esc(s.image || 'assets/img/placeholder-logo.png')}')"></div>
+          <div class="pad"><h4>${esc(s.name || '')}</h4></div>
+        </a>
+      `).join('');
+    });
   }
 
-  function renderContact(d){
-    const wrap = document.getElementById('contact-cards');
-    if (!wrap) return;
-    wrap.innerHTML = `
-      <article class="card soft hover-lift"><h3>Email</h3><p>${esc(d.settings?.contact || d.settings?.adminEmail || '')}</p></article>
-      <article class="card soft hover-lift"><h3>Slack</h3><p><a href="https://hackclub.com/slack" target="_blank">Join</a></p></article>
-      <article class="card soft hover-lift"><h3>GitHub</h3><p><a href="https://github.com/hackclub" target="_blank">Explore</a></p></article>
+  function renderContacts(){
+    const box = $('#contact-cards'); if (!box) return;
+    S.getData().then(d => {
+      const s = d.settings || {};
+      const items = [];
+      if (s.contact || s.adminEmail) items.push({ title:'Email', value: s.contact || s.adminEmail, link:`mailto:${s.contact || s.adminEmail}` });
+      if (s.donationLink) items.push({ title:'Donation', value:'Support the club', link:s.donationLink });
+      const socials = Array.isArray(s.socials) ? s.socials : String(s.socials||'').split(',').map(x=>x.trim()).filter(Boolean);
+      socials.forEach(u => items.push({ title:'Social', value:u, link:u }));
+      if (!items.length){ box.innerHTML = '<div class="card soft"><p class="muted">No contacts yet.</p></div>'; return; }
+      box.innerHTML = items.map(i => `
+        <a class="card soft" ${i.link ? `href="${esc(i.link)}" target="_blank" rel="noopener"`:''}>
+          <h4>${esc(i.title)}</h4>
+          <p class="muted">${esc(i.value)}</p>
+        </a>
+      `).join('');
+    });
+  }
+
+  // Optional: inject minimal CSS for hover overlays if site CSS lacks it
+  (function ensureHoverCss(){
+    if (document.getElementById('hover-overlay-css')) return;
+    const css = `
+      .hoverable { position: relative; overflow: hidden; }
+      .hoverable .cover { width:100%; height:160px; background:#111 center/cover no-repeat; }
+      .hoverable .cover.contain { background-size: contain; background-color:#111; }
+      .hoverable::after { content:''; position:absolute; inset:0; background:linear-gradient(transparent, rgba(0,0,0,.35)); opacity:0; transition:opacity .2s; }
+      .hoverable:hover::after { opacity:1; }
+      .card.person .avatar { width:96px; height:96px; border-radius:50%; background:#222 center/cover no-repeat; margin: 8px auto; }
+      .prose p { margin: 0.4rem 0; }
     `;
-  }
+    const s = document.createElement('style');
+    s.id = 'hover-overlay-css';
+    s.textContent = css;
+    document.head.appendChild(s);
+  })();
 
-  function animateCounters(d){
-    const counters = document.querySelectorAll('[data-counter]');
-    if (!counters.length) return;
-    const participants = (d.members||[]).filter(m=>m.status==='approved').length;
-    const map = { participants, projects: (d.projects||[]).length, organizers: (d.organizers||[]).length };
-    const obs = new IntersectionObserver((entries)=>{
-      entries.forEach(en=>{
-        if (en.isIntersecting){
-          const el = en.target; const key = el.dataset.counter; const target = map[key]||0;
-          let cur=0; const step = Math.max(1, Math.round(Math.max(target,1)/60));
-          const t = setInterval(()=>{ cur+=step; if(cur>=target){cur=target; clearInterval(t);} el.textContent = cur; }, 25);
-          obs.unobserve(el);
-        }
-      });
-    }, { threshold: 0.4 });
-    counters.forEach(c=> obs.observe(c));
+  async function initial(){
+    try { await S.getData(); } catch {}
+    renderStats();
+    renderClubInfo();
+    renderOrganizers();
+    renderHomeProjects();
+    renderSponsors();
+    renderContacts();
   }
-
-  async function renderAll(){
-    const d = await window.StorageAPI.getData();
-    renderClubInfo(d);
-    renderOrganizers(d);
-    renderProjects(d);
-    renderSponsors(d);
-    renderContact(d);
-    animateCounters(d);
-  }
-
-  renderAll();
-  window.addEventListener('clubDataUpdated', renderAll);
-});
+  document.addEventListener('DOMContentLoaded', initial);
+  onData(()=> { renderStats(); renderClubInfo(); renderOrganizers(); renderHomeProjects(); renderSponsors(); renderContacts(); });
+})();
