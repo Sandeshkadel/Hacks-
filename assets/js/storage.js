@@ -1,4 +1,5 @@
-// LocalStorage data + auth + email outbox + CRUD helpers
+// Local fallback StorageAPI: used only when Firebase config is missing.
+// Remote (Firestore) will override with storage.remote.js if configured.
 (function(){
   const KEY = 'clubData.v2';
   const SESSION = 'clubSession.v1';
@@ -7,48 +8,23 @@
     settings: {
       adminEmail: 'admin@club.local',
       adminUser: 'admin@club.local',
-      // SHA-256 of "hackclub123"
-      adminPassHash: '2a0a6f0b5b7a314cf5e0f49c3ec6a2e3d52c2a8b66b9bb9c6a3b15f3d9a0a1a8',
+      adminPassHash: '',
       adminPassPlain: 'hackclub123',
       donationLink: '',
       socials: [],
       contact: 'admin@club.local'
     },
-    organizers: [
-      { id: uid(), name:'Jane Doe', role:'Lead Organizer', image:'https://placehold.co/320x200?text=Jane', socials:[{name:'GitHub', url:'https://github.com/janedoe'}] }
-    ],
-    sponsors: [
-      { id: uid(), name:'Acme Corp', image:'https://placehold.co/240x120?text=Acme', link:'#', description:'Supporting student innovation.' }
-    ],
+    organizers: [],
+    sponsors: [],
     donors: [],
-    resources: [
-      { id: uid(), title:'Hack Club Handbook', url:'https://guide.hackclub.com', description:'Official guides and tips.' }
-    ],
-    projects: [
-      { id: uid(), name:'Club Site', creators:'Team', makerSocials:[{name:'GitHub',url:'https://github.com/hackclub'}], image:'https://placehold.co/640x360?text=Project', demo:'#', code:'#', description:'Our official site.', award:'month' }
-    ],
-    hackathons: [
-      { id: uid(), title:'Winter Hacks', date:'2025-01-15', website:'#', cover:'https://placehold.co/640x360?text=Hack', description:'48-hour hackathon.', prizes:['Swag'], participants:['Alice','Bob'], winners:['Team Alpha'] }
-    ],
-    gallery: [
-      { id: uid(), type:'image', src:'https://placehold.co/600x400?text=Workshop', link:'#', event:'Workshop', date:'2025-07-01', description:'Great session' }
-    ],
-    courses: [
-      { id: uid(), title:'Intro to Web', level:'beginner', url:'https://youtube.com', embed:'', thumb:'', description:'Basics' }
-    ],
-    information: {
-      goals: '<p>Our goals: build, learn, share.</p>',
-      motto: '<p>Our motto: Ship it!</p>',
-      what_is_hackclub: '<p>Hack Club is a global student community of makers.</p>',
-      what_is_our_club: '<p>Our club is a local chapter that meets weekly.</p>'
-    },
-    members: [
-      { id: uid(), name:'John Doe', caste:'General', contact:'+9779800000000', location:'City', email:'john@example.com', message:'Excited to join!', status:'pending' }
-    ],
-    meetings: [
-      { id: uid(), title:'Weekly Sync', date:'2025-09-01 17:00', description:'Project updates', zoomLink:'' }
-    ],
-    meetingRecordings: [],
+    resources: [],
+    projects: [],
+    hackathons: [],
+    gallery: [],
+    courses: [],
+    information: { goals: '<p>Our goals: build, learn, share.</p>' },
+    members: [],
+    meetings: [],
     messages: [],
     emails: []
   };
@@ -64,19 +40,7 @@
     try{
       const raw = localStorage.getItem(KEY);
       const d = raw ? JSON.parse(raw) : clone(DEFAULT);
-      // migrations / defaults
       d.settings = { ...DEFAULT.settings, ...(d.settings||{}) };
-      d.organizers = d.organizers || [];
-      d.projects = (d.projects || []).map(p => ({ makerSocials: [], ...p }));
-      d.gallery = d.gallery || [];
-      d.hackathons = d.hackathons || [];
-      d.resources = d.resources || [];
-      d.courses = d.courses || [];
-      d.sponsors = d.sponsors || [];
-      d.donors = d.donors || [];
-      d.information = d.information || {};
-      d.members = d.members || [];
-      d.meetings = d.meetings || [];
       return d;
     }catch{ return clone(DEFAULT); }
   }
@@ -95,13 +59,13 @@
   }
   function setSession(s){ sessionStorage.setItem(SESSION, JSON.stringify(s)); }
 
+  // Expose local fallback
   window.StorageAPI = {
     // data
     getData,
     setData(newData){ setData(newData); },
     reset(){ localStorage.removeItem(KEY); },
 
-    // stats: participants only includes approved members
     stats(){
       const d = getData();
       return {
@@ -111,18 +75,10 @@
       };
     },
 
-    // members
     addMember(member){
       const d = getData();
-      const exists = d.members.some(m =>
-        (m.email||'').toLowerCase() === (member.email||'').toLowerCase() ||
-        (m.name||'').trim().toLowerCase() === (member.name||'').trim().toLowerCase() ||
-        m.contact === member.contact
-      );
-      if (exists) return { ok:false, message:'Already registered' };
       d.members.push({ id: uid(), ...member, status:'pending' });
-      setData(d);
-      return { ok:true };
+      setData(d); return { ok:true };
     },
     updateMember(id, updates){
       const d = getData();
@@ -137,7 +93,6 @@
       setData(d);
     },
 
-    // generic lists
     upsert(listName, item){
       const d = getData();
       const list = d[listName] || [];
@@ -162,17 +117,9 @@
       setData(d);
     },
 
-    // information
     setInformationSection(section, html){
       const d = getData();
       d.information[section] = html;
-      setData(d);
-    },
-
-    // meeting recordings/messages/emails
-    addRecording(url){
-      const d = getData();
-      d.meetingRecordings.push(url);
       setData(d);
     },
     addMessage(msg){
@@ -180,15 +127,12 @@
       d.messages.unshift({ id: uid(), date: new Date().toISOString(), ...msg });
       setData(d);
     },
-
     emailOutbox(){ return getData().emails; },
     pushEmail(email){
       const d = getData();
       d.emails.unshift({ id: uid(), date: new Date().toISOString(), ...email });
       setData(d);
     },
-
-    // settings
     settings(){ return getData().settings; },
     saveSettings(upd){
       const d = getData();
@@ -196,7 +140,6 @@
       setData(d);
     },
 
-    // auth
     async checkCredentials(username, password){
       const d = getData();
       const okUser = (username || '').toLowerCase() === (d.settings.adminUser || '').toLowerCase();
@@ -209,11 +152,8 @@
       return { ok:true };
     },
     async login(username, password){
-      const res = await this.checkCredentials(username, password);
-      if (res.ok){
-        setSession({ admin:true, at: Date.now() });
-        return true;
-      }
+      const r = await this.checkCredentials(username, password);
+      if (r.ok){ setSession({ admin:true, at: Date.now() }); return true; }
       return false;
     },
     logout(){ setSession({}); },
@@ -226,10 +166,4 @@
       setData(d);
     }
   };
-
-  window.addEventListener?.('storage', (e) => {
-    if (e.key === KEY) {
-      window.dispatchEvent?.(new CustomEvent('clubDataUpdated', { detail: { key: KEY } }));
-    }
-  });
 })();
