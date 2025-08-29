@@ -1,23 +1,19 @@
-// Public site rendering: splash boot (2s), organizers, projects (compact), club info from Information, sponsors, contact, counters
+// Public rendering + 2s boot splash + live refresh
 document.addEventListener('DOMContentLoaded', () => {
-  // Splash/booting: show then hide after 2 seconds
+  // Splash visible for 2 seconds
   const splash = document.getElementById('splash');
   if (splash) {
     const hideSplash = () => {
-      splash.classList.add('fadeout');        // fade out
-      setTimeout(() => {                      // then remove from flow
-        splash.style.display = 'none';
-      }, 450); // match CSS transition duration
+      splash.classList.add('fadeout');
+      setTimeout(() => { splash.style.display = 'none'; }, 450);
     };
-    setTimeout(hideSplash, 2000); // visible for 2 seconds
+    setTimeout(hideSplash, 2000);
   }
 
   const UI = window.UI || { escape: (s)=>String(s??'') };
   const esc = (s) => UI.escape(s);
-
   const data = () => (window.StorageAPI?.getData?.() || {});
 
-  // Helper: socials renderer
   const nameFromUrl = (u='') => {
     const x = u.toLowerCase();
     if (x.includes('github')) return 'GitHub';
@@ -30,10 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const renderSocials = (arr=[]) => (arr||[]).map(s => `<a class="chip sm" href="${esc(s.url||'#')}" target="_blank" rel="noopener">${esc(s.name || nameFromUrl(s.url||''))}</a>`).join('');
 
-  function renderClubInfo(){
+  function renderClubInfo(d){
     const wrap = document.getElementById('club-info');
     if (!wrap) return;
-    const info = data().information || {};
+    const info = d.information || {};
     const entries = Object.entries(info);
     if (!entries.length){
       wrap.innerHTML = '<p class="muted">No information yet. Admin can add it in Information tab.</p>';
@@ -47,10 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  function renderOrganizers(){
+  function renderOrganizers(d){
     const wrap = document.getElementById('organizers');
     if (!wrap) return;
-    const orgs = data().organizers || [];
+    const orgs = d.organizers || [];
     wrap.innerHTML = (orgs.length ? orgs : []).map(o => `
       <article class="card overlay-card">
         <div class="img-wrap">
@@ -69,10 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('') || '<p class="muted">No organizers yet.</p>';
   }
 
-  function renderProjects(){
+  function renderProjects(d){
     const wrap = document.getElementById('home-projects');
     if (!wrap) return;
-    let items = (data().projects||[]).slice();
+    let items = (d.projects||[]).slice();
     const awardOrder = { year:0, month:1, week:2, '':3, undefined:3 };
     items.sort((a,b)=> (awardOrder[a.award||''] ?? 3) - (awardOrder[b.award||''] ?? 3));
     items = items.slice(0, 8);
@@ -100,10 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('') || '<p class="muted">No projects yet.</p>';
   }
 
-  function renderSponsors(){
+  function renderSponsors(d){
     const wrap = document.getElementById('home-sponsors');
     if (!wrap) return;
-    const sponsors = (data().sponsors||[]).slice(0, 4);
+    const sponsors = (d.sponsors||[]).slice(0, 4);
     wrap.innerHTML = sponsors.map(s=> `
       <article class="card sponsor hover-lift">
         <img class="sponsor-logo" src="${esc(s.image || '')}" alt="${esc(s.name || '')}" />
@@ -112,10 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('') || '<p class="muted">No sponsors yet.</p>';
   }
 
-  function renderContact(){
+  function renderContact(d){
     const wrap = document.getElementById('contact-cards');
     if (!wrap) return;
-    const d = data();
     wrap.innerHTML = `
       <article class="card soft hover-lift"><h3>Email</h3><p>${esc(d.settings?.contact || d.settings?.adminEmail || '')}</p></article>
       <article class="card soft hover-lift"><h3>Slack</h3><p><a href="https://hackclub.com/slack" target="_blank">Join</a></p></article>
@@ -123,11 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function animateCounters(){
+  function animateCounters(d){
     const counters = document.querySelectorAll('[data-counter]');
     if (!counters.length) return;
-    const st = window.StorageAPI.stats();
-    const map = { participants: st.participants, projects: st.projects, organizers: st.organizers };
+    const participants = (d.members||[]).filter(m=>m.status==='approved').length;
+    const map = { participants, projects: (d.projects||[]).length, organizers: (d.organizers||[]).length };
     const obs = new IntersectionObserver((entries)=>{
       entries.forEach(en=>{
         if (en.isIntersecting){
@@ -141,20 +136,16 @@ document.addEventListener('DOMContentLoaded', () => {
     counters.forEach(c=> obs.observe(c));
   }
 
-  // First render
-  renderClubInfo();
-  renderOrganizers();
-  renderProjects();
-  renderSponsors();
-  renderContact();
-  animateCounters();
+  async function renderAll(){
+    const d = await window.StorageAPI.getData();
+    renderClubInfo(d);
+    renderOrganizers(d);
+    renderProjects(d);
+    renderSponsors(d);
+    renderContact(d);
+    animateCounters(d);
+  }
 
-  // Live re-render when Admin saves to LocalStorage (same tab or other tab)
-  window.addEventListener('clubDataUpdated', () => {
-    renderClubInfo();
-    renderOrganizers();
-    renderProjects();
-    renderSponsors();
-    renderContact();
-  });
+  renderAll();
+  window.addEventListener('clubDataUpdated', renderAll);
 });
