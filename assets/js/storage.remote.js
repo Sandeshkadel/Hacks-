@@ -1,22 +1,15 @@
-// Firestore-backed StorageAPI with real-time sync for everyone.
-// If Firebase config is present, this overrides the local fallback StorageAPI.
+// Firestore-backed StorageAPI with live sync + duplicate registration protection + optional dedupe
 (function(){
   const cfg = window.AppConfig?.firebase;
-  if (!cfg?.apiKey) {
-    console.info('[Storage] Firebase not configured; using local fallback.');
-    return;
-  }
+  if (!cfg?.apiKey) { console.info('[Storage] Firebase not configured; using local fallback.'); return; }
   console.info('[Storage] Firebase enabled; using Firestore (real-time).');
 
-  // Init Firebase (compat)
   const app = firebase.initializeApp(cfg);
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  // Persist session across reloads (prevents login bounce)
   try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch {}
 
-  // Collections we manage
   const COLS = [
     'organizers','sponsors','donors','resources',
     'projects','hackathons','gallery','courses',
@@ -38,13 +31,9 @@
   function uid(){ return db.collection('_seq').doc().id.toUpperCase(); }
   function emit(){ window.dispatchEvent?.(new CustomEvent('clubDataUpdated', {})); }
 
-  async function getDocSafe(docRef, fallback){
-    const snap = await docRef.get();
-    return snap.exists ? (snap.data() || {}) : (fallback ?? {});
-  }
+  async function getDocSafe(ref, fallback){ const s = await ref.get(); return s.exists ? (s.data()||{}) : (fallback||{}); }
   async function getColAll(name){
-    try {
-      const snap = await db.collection(name).orderBy('order','desc').get();
+    try { const snap = await db.collection(name).orderBy('order','desc').get();
       return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch {
       const snap = await db.collection(name).get();
@@ -80,29 +69,35 @@
   async function reorderCol(name, orderedIds){
     const base = Number.MAX_SAFE_INTEGER;
     const batch = db.batch();
-    orderedIds.forEach((id, i) => { batch.set(db.collection(name).doc(id), { order: base - i }, { merge:true }); });
+    orderedIds.forEach((id, i) => batch.set(db.collection(name).doc(id), { order: base - i }, { merge:true }));
     await batch.commit();
   }
+
+  // Helpers for duplicate checks
+  function normEmail(e){ return String(e||'').trim().toLowerCase(); }
+  function normPhone(p){ return String(p||'').replace(/[^\d]/g,''); }
 
   window.StorageAPI = {
     async getData(){
       if (!state.ready){
-        const [
-          settings, information,
-          organizers, sponsors, donors, resources,
-          projects, hackathons, gallery, courses,
-          members, meetings, messages, emails
-        ] = await Promise.all([
+        const [settings, information, ...colls] = await Promise.all([
           getDocSafe(META_SETTINGS, {}),
           getDocSafe(META_INFO, {}),
           ...COLS.map(getColAll)
         ]);
+        const [
+          organizers, sponsors, donors, resources,
+          projects, hackathons, gallery, courses,
+          members, meetings, messages, emails
+        ] = colls;
         state.data = { settings, information, organizers, sponsors, donors, resources, projects, hackathons, gallery, courses, members, meetings, messages, emails };
         state.ready = true;
         attachRealtime();
       }
       return state.data;
     },
+
+    // Stats: only approved members count
     stats(){
       const d = state.data;
       return {
@@ -114,22 +109,68 @@
 
     // Members
     async addMember(member){
-      const data = { id: uid(), ...member, status:'pending', createdAt: Date.now() };
+      // Duplicate prevention: same email OR same phone
+      const email = normEmail(member.email);
+      const phone = normPhone(member.phone);
+      const checks = [];
+      if (email) checks.push(db.collection('members').where('email', '==', email).limit(1).get());
+      if (phone) checks.push(db.collection('members').where('phone', '==', phone).limit(1).get());
+      if (checks.length){
+        const snaps = await Promise.all(checks);
+        const dup = snaps.some(s => s.docs.length > 0);
+        if (dup) {
+          const err = new Error('You are already registered with this email/phone.');
+          err.code = 'already-registered';
+          throw err;
+        }
+      }
+      const data = {
+        id: uid(),
+        ...member,
+        email,
+        phone,
+        status:'pending',
+        createdAt: Date.now()
+      };
       await setColItem('members', data);
       return { ok:true, id: data.id };
     },
     async updateMember(id, updates){ await setColItem('members', { id, ...updates }); return true; },
     async deleteMember(id){ await delColItem('members', id); },
 
+    // Admin: optional dedupe (keep oldest by createdAt)
+    async dedupeMembers(){
+      const snap = await db.collection('members').get();
+      const list = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      const map = new Map();
+      const del = [];
+      for (const m of list){
+        const key = `${normEmail(m.email)}|${normPhone(m.phone)}`;
+        if (!key.trim()) continue;
+        const cur = map.get(key);
+        if (!cur) { map.set(key, m); continue; }
+        // Keep older one
+        const keep = (cur.createdAt||0) <= (m.createdAt||0) ? cur : m;
+        const drop = keep === cur ? m : cur;
+        map.set(key, keep);
+        del.push(drop.id);
+      }
+      if (!del.length) return 0;
+      const batch = db.batch();
+      del.forEach(id => batch.delete(db.collection('members').doc(id)));
+      await batch.commit();
+      return del.length;
+    },
+
     // Generic CRUD
-    async upsert(listName, item){ return await setColItem(listName, item); },
-    async remove(listName, id){ await delColItem(listName, id); },
-    async reorder(listName, ids){ await reorderCol(listName, ids); },
+    async upsert(name, item){ return await setColItem(name, item); },
+    async remove(name, id){ await delColItem(name, id); },
+    async reorder(name, ids){ await reorderCol(name, ids); },
 
     async setInformationSection(section, html){ await META_INFO.set({ [section]: html }, { merge:true }); },
 
+    // Messages / Emails
     async addMessage(msg){ const data = { id: uid(), date: new Date().toISOString(), ...msg }; await setColItem('messages', data); },
-
     async emailOutbox(){
       const snap = await db.collection('emails').orderBy('date', 'desc').get().catch(()=> db.collection('emails').get());
       return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -139,10 +180,11 @@
       await setColItem('emails', data);
     },
 
+    // Settings
     async settings(){ return await getDocSafe(META_SETTINGS, {}); },
     async saveSettings(upd){ await META_SETTINGS.set(upd, { merge:true }); },
 
-    // Auth via Firebase
+    // Auth
     async login(username, password){ await auth.signInWithEmailAndPassword(username, password); return true; },
     logout(){ return auth.signOut(); },
     isAuthed(){ return !!auth.currentUser; },
