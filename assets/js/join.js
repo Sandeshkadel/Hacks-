@@ -1,4 +1,4 @@
-// Saves registration (with Nepal phone, multi-select interests, optional resume URL) and emails applicant.
+// Registration with duplicate check messaging (email or phone)
 (function(){
   const S = window.StorageAPI;
 
@@ -18,12 +18,12 @@
       e.preventDefault();
       const fd = new FormData(form);
       const data = Object.fromEntries(fd.entries());
-      const interestsSel = Array.from(form.querySelector('select[name="interests"]').selectedOptions || []).map(o=>o.value);
-      const interests = interestsSel.join(', ');
+      // Multi-select "interests" support if your form uses multiple
+      const interestsSel = Array.from(form.querySelector('select[name="interests"]')?.selectedOptions || []).map(o=>o.value);
+      if (interestsSel.length) data.interests = interestsSel.join(', ');
 
       if (!data?.name || !data?.email) return setMsg(msg, 'Please enter your name and email', 'error');
       if (!isNepalPhone(data.phone)) return setMsg(msg, 'Please enter a valid Nepal phone number', 'error');
-      if (!interestsSel.length) return setMsg(msg, 'Please select at least one interest', 'error');
 
       try {
         btn.disabled = true; btn.textContent = 'Submitting…';
@@ -31,7 +31,7 @@
           name: data.name.trim(),
           email: data.email.trim(),
           phone: (data.phone||'').trim(),
-          interests,
+          interests: data.interests || '',
           skills: data.skills || '',
           resumeUrl: data.resumeUrl || '',
           status: 'pending',
@@ -40,18 +40,12 @@
         setMsg(msg, 'Thanks for registering! We will inform you later via email.', 'success');
         form.reset();
 
-        // Confirmation email to registrant
+        // Confirmation email
         const subject = 'Hack Club registration received';
         const html = `<p>Namaste ${data.name},</p><p>Thanks for registering with Hack Club! Your application is under review. We will inform you later.</p>`;
-        try {
-          await window.Emailer?.sendEmail(
-            data.email,
-            subject,
-            html,
-            { to_name: data.name, from_name: 'Hack Club', from_email: 'sandeshkadel2474@gmail.com' }
-          );
-        } catch {}
+        try { await window.Emailer?.sendEmail(data.email, subject, html, { to_name: data.name, from_name: 'Hack Club', from_email: 'sandeshkadel2474@gmail.com' }); } catch {}
       } catch (err){
+        if (err?.code === 'already-registered') return setMsg(msg, 'You are already registered with this email or phone.', 'error');
         console.error(err);
         setMsg(msg, err?.message || 'Submission failed', 'error');
       } finally {
