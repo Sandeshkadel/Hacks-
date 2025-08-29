@@ -7,6 +7,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <script defer src="assets/js/storage.js"></script>
+  <script defer src="assets/js/config.js"></script>
+
+  <!-- Firebase for remote auth -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
+
+  <script defer src="assets/js/storage.remote.js"></script>
   <script defer src="assets/js/ui.js"></script>
 </head>
 <body class="theme-gradient">
@@ -43,7 +51,7 @@
         <p class="muted" id="ctx-note" style="margin-top:6px"></p>
       </form>
 
-      <p class="muted center" style="margin-top:10px">Default: admin@club.local / hackclub123</p>
+      <p class="muted center" style="margin-top:10px">Use your Firebase Admin email/password. If Firebase is not configured, default local: admin@club.local / hackclub123</p>
     </div>
   </main>
 
@@ -55,7 +63,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Redirect if already logged in
+      // If already authed, go to admin
       try { if (window.StorageAPI.isAuthed()) { location.href = 'admin.html'; return; } } catch {}
 
       const form = document.getElementById('login-form');
@@ -66,8 +74,14 @@
       const msg = document.getElementById('login-msg');
       const note = document.getElementById('ctx-note');
 
-      if (!('crypto' in window) || !window.crypto?.subtle) {
-        note.textContent = 'Note: Secure crypto not available; using fallback so login still works.';
+      if (window.AppConfig?.firebase?.apiKey) {
+        note.textContent = 'Using Firebase Auth';
+      } else {
+        if (!('crypto' in window) || !window.crypto?.subtle) {
+          note.textContent = 'No secure crypto; using plain fallback for local login.';
+        } else {
+          note.textContent = 'Firebase not configured: using local login (temporary).';
+        }
       }
 
       function setMsg(text, type){
@@ -93,24 +107,20 @@
           btn.disabled = true;
           btn.textContent = 'Logging in…';
 
-          const res = await window.StorageAPI.checkCredentials(username, password);
-          if (!res.ok) {
-            if (res.reason === 'user') setMsg('Admin ID is wrong', 'error');
-            else if (res.reason === 'pass') setMsg('Password is wrong', 'error');
-            else setMsg('Login failed', 'error');
-            return;
-          }
-
           const ok = await window.StorageAPI.login(username, password);
           if (ok) {
             setMsg('Login successful. Redirecting…', 'success');
             location.href = 'admin.html';
           } else {
-            setMsg('Login failed', 'error');
+            // get reason if available
+            const res = await window.StorageAPI.checkCredentials?.(username, password);
+            if (res?.reason === 'user') setMsg('Admin ID is wrong', 'error');
+            else if (res?.reason === 'pass') setMsg('Password is wrong', 'error');
+            else setMsg('Login failed', 'error');
           }
         } catch (err) {
           console.error(err);
-          setMsg('Unexpected error, please try again', 'error');
+          setMsg(err?.message || 'Unexpected error, please try again', 'error');
         } finally {
           btn.disabled = false;
           btn.textContent = 'Login';
