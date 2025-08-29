@@ -7,29 +7,42 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <!-- Local fallback + config -->
-  <script defer src="assets/js/storage.js?v=9"></script>
-  <script defer src="assets/js/config.js?v=9"></script>
+  <script defer src="assets/js/storage.js?v=10"></script>
+  <script defer src="assets/js/config.js?v=10"></script>
 
   <!-- Firebase (compat) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
-  <!-- Remote Storage wrapper + Email helper -->
-  <script defer src="assets/js/storage.remote.js?v=9"></script>
-  <script defer src="assets/js/email.js?v=9"></script>
-  <script defer src="assets/js/join.js?v=9"></script>
+  <!-- Remote Storage wrapper + Email -->
+  <script defer src="assets/js/storage.remote.js?v=10"></script>
+  <script defer src="assets/js/email.js?v=10"></script>
+  <script defer src="assets/js/join.js?v=10"></script>
 </head>
 <body class="theme-gradient">
   <main class="section-pad">
     <div class="container narrow">
       <h1>Join Hack Club</h1>
       <form id="join-form" class="form card">
-        <label>Name <input name="name" required /></label>
-        <label>Email <input name="email" type="email" required /></label>
-        <label>Grade <input name="grade" /></label>
-        <label>Interests <input name="interests" placeholder="e.g., web, AI, hardware" /></label>
-        <label>Message <textarea name="message" rows="4" placeholder="Tell us about you"></textarea></label>
+        <label>Full Name
+          <input name="name" required autocomplete="name" />
+        </label>
+        <label>Email
+          <input name="email" type="email" required autocomplete="email" />
+        </label>
+        <label>Contact Number (Nepal)
+          <input name="phone" type="tel" required inputmode="numeric"
+                 placeholder="+977 98XXXXXXXX or 98XXXXXXXX"
+                 pattern="^((\\+?977[- ]?)?(98|97)\\d{8}|0(98|97)\\d{8})$"
+                 title="Use +977 98XXXXXXXX, 98XXXXXXXX, or 0 98XXXXXXXX" />
+        </label>
+        <label>Interests
+          <input name="interests" placeholder="e.g., web, AI, hardware" />
+        </label>
+        <label>Your Skills / About You
+          <textarea name="skills" rows="4" placeholder="Tell us about your skills"></textarea>
+        </label>
         <button class="btn btn-primary" type="submit" id="join-btn">Submit</button>
         <div id="join-msg" class="msg muted" style="margin-top:10px"></div>
       </form>
