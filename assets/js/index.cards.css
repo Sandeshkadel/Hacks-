@@ -1,0 +1,89 @@
+// Renders Organizer and Project cards on index with info only on hover.
+(function(){
+  const S = window.StorageAPI;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const norm = u => { const v=String(u||'').trim(); return v ? (/^https?:\/\//i.test(v)?v:`https://${v}`) : ''; };
+
+  function socialLink(v, type){
+    const t = String(v||'').trim(); if (!t) return '';
+    const has = /^https?:\/\//i.test(t);
+    if (type==='github') return has?t:`https://github.com/${t.replace(/^@/,'')}`;
+    if (type==='facebook') return has?t:`https://facebook.com/${t.replace(/^@/,'')}`;
+    if (type==='instagram') return has?t:`https://instagram.com/${t.replace(/^@/,'')}`;
+    if (type==='linkedin') return has?t:`https://www.linkedin.com/in/${t.replace(/^@/,'')}`;
+    if (type==='whatsapp'){ if (has) return t; const digits=t.replace(/[^\d]/g,'').replace(/^977?/, '977'); return `https://wa.me/${digits}`; }
+    return t;
+  }
+
+  async function renderOrganizers(){
+    const box = $('#organizers'); if (!box) return;
+    const d = await S.getData();
+    const items = d.organizers || [];
+    if (!items.length){
+      box.innerHTML = '<div class="card soft"><p class="muted">No organizers yet.</p></div>';
+      return;
+    }
+    box.innerHTML = items.map(o => {
+      const socials = [
+        o.github && { label:'GitHub', href: socialLink(o.github,'github') },
+        o.facebook && { label:'Facebook', href: socialLink(o.facebook,'facebook') },
+        o.instagram && { label:'Instagram', href: socialLink(o.instagram,'instagram') },
+        o.whatsapp && { label:'WhatsApp', href: socialLink(o.whatsapp,'whatsapp') },
+        o.linkedin && { label:'LinkedIn', href: socialLink(o.linkedin,'linkedin') }
+      ].filter(Boolean);
+      return `
+        <article class="organizer-card">
+          <div class="avatar" style="background-image:url('${esc(o.image || 'assets/img/placeholder-user.png')}')"></div>
+          <div class="overlay">
+            <div class="info">
+              <h4>${esc(o.name||'')}</h4>
+              ${o.role ? `<p>${esc(o.role)}</p>`:''}
+              ${socials.length ? `<div class="links">
+                ${socials.map(s=>`<a class="chip" href="${esc(s.href)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join('')}
+              </div>`:''}
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  async function renderProjects(){
+    const box = $('#home-projects'); if (!box) return;
+    const d = await S.getData();
+    const items = d.projects || [];
+    if (!items.length){
+      box.innerHTML = '<div class="card soft"><p class="muted">No projects yet.</p></div>';
+      return;
+    }
+    box.innerHTML = items.map(p => {
+      const demo = norm(p.demo), code = norm(p.code), img = norm(p.image);
+      const chips = [
+        demo && `<a class="chip" href="${esc(demo)}" target="_blank" rel="noopener">Demo</a>`,
+        code && `<a class="chip" href="${esc(code)}" target="_blank" rel="noopener">Code</a>`,
+        img && `<a class="chip" href="${esc(img)}" target="_blank" rel="noopener">Image</a>`
+      ].filter(Boolean).join('');
+      return `
+        <article class="project-card">
+          <div class="cover" style="background-image:url('${esc(p.image || 'assets/img/placeholder-cover.jpg')}')"></div>
+          <div class="overlay">
+            <div class="info">
+              <h4>${esc(p.name||'')}</h4>
+              ${p.creators ? `<p>by ${esc(p.creators)}</p>`:''}
+              <div class="links">${chips}</div>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  function renderAll(){ renderOrganizers(); renderProjects(); }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    try { await S.getData(); } catch {}
+    renderAll();
+  });
+  window.addEventListener('clubDataUpdated', renderAll);
+})();
