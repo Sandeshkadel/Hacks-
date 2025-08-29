@@ -13,6 +13,11 @@
   const auth = firebase.auth();
   const db = firebase.firestore();
 
+  // Ensure session persists across page reloads (prevents login flashback)
+  try {
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+  } catch {}
+
   // Collections we manage
   const COLS = [
     'organizers','sponsors','donors','resources',
@@ -196,6 +201,6 @@
     }
   };
 
-  // Make sure clubDataUpdated fires on auth state changes (useful for UI toggles)
+  // Fire auth state events (useful for UI)
   auth.onAuthStateChanged(() => emit());
 })();
