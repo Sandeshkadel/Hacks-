@@ -6,15 +6,20 @@
   <title>Hack Club — Admin Login</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <!-- Local fallback first -->
   <script defer src="assets/js/storage.js"></script>
+  <!-- Your config (fill Firebase keys here for PERMANENT changes) -->
   <script defer src="assets/js/config.js"></script>
 
-  <!-- Firebase for remote auth -->
+  <!-- Firebase (used only if config has keys) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore-compat.js"></script>
 
+  <!-- Remote storage (overrides StorageAPI if Firebase configured) -->
   <script defer src="assets/js/storage.remote.js"></script>
+
   <script defer src="assets/js/ui.js"></script>
 </head>
 <body class="theme-gradient">
@@ -48,10 +53,9 @@
         </label>
         <button class="btn btn-primary" type="submit" id="login-btn">Login</button>
         <div id="login-msg" class="msg muted" style="margin-top:10px"></div>
-        <p class="muted" id="ctx-note" style="margin-top:6px"></p>
+        <!-- Hidden by default; shown only on localhost for dev -->
+        <p class="muted" id="ctx-note" style="margin-top:6px; display:none"></p>
       </form>
-
-      <p class="muted center" style="margin-top:10px">Use your Firebase Admin email/password. If Firebase is not configured, default local: admin@club.local / hackclub123</p>
     </div>
   </main>
 
@@ -63,7 +67,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // If already authed, go to admin
+      // Redirect if already logged in
       try { if (window.StorageAPI.isAuthed()) { location.href = 'admin.html'; return; } } catch {}
 
       const form = document.getElementById('login-form');
@@ -74,19 +78,22 @@
       const msg = document.getElementById('login-msg');
       const note = document.getElementById('ctx-note');
 
-      if (window.AppConfig?.firebase?.apiKey) {
-        note.textContent = 'Using Firebase Auth';
-      } else {
-        if (!('crypto' in window) || !window.crypto?.subtle) {
-          note.textContent = 'No secure crypto; using plain fallback for local login.';
-        } else {
-          note.textContent = 'Firebase not configured: using local login (temporary).';
-        }
-      }
-
       function setMsg(text, type){
         msg.textContent = text || '';
         msg.className = 'msg ' + (type || 'muted');
+      }
+      function setNote(text){
+        if (!text) { note.style.display = 'none'; note.textContent = ''; }
+        else { note.style.display = 'block'; note.textContent = text; }
+      }
+
+      // Only show any note on localhost; keep production clean
+      const hasFirebase = !!(window.AppConfig && window.AppConfig.firebase && window.AppConfig.firebase.apiKey);
+      const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
+      if (isLocalhost) {
+        setNote(hasFirebase ? 'Using Firebase Auth' : 'Firebase not configured: using local login (development only).');
+      } else {
+        setNote(''); // hide in production
       }
 
       show.addEventListener('change', () => {
@@ -112,7 +119,6 @@
             setMsg('Login successful. Redirecting…', 'success');
             location.href = 'admin.html';
           } else {
-            // get reason if available
             const res = await window.StorageAPI.checkCredentials?.(username, password);
             if (res?.reason === 'user') setMsg('Admin ID is wrong', 'error');
             else if (res?.reason === 'pass') setMsg('Password is wrong', 'error');
